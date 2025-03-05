@@ -24,45 +24,166 @@ class IntroScene extends Phaser.Scene {
 }
 
 // Nueva escena para ingresar el nombre del jugador
-class NameInputScene extends Phaser.Scene {
+class NameSelectScene extends Phaser.Scene {
   constructor() {
-    super({ key: 'NameInputScene' });
+    super({ key: 'NameSelectScene' });
+
+    // Nombre que vamos construyendo
+    this.typedName = "";
+
+    // Posición del cursor en la rejilla (fila y columna)
+    this.cursorRow = 0;
+    this.cursorCol = 0;
   }
 
   preload() {
-    // Reutilizamos la imagen de fondo de la introducción
-    this.load.image('introBG', 'assets/intro.jpg');
+    // Carga de fuentes o imágenes si necesitas
   }
 
   create() {
-    // Fondo
-    this.add.image(400, 300, 'introBG').setOrigin(0.5);
-    this.add.text(400, 150, 'Ingresa tu nombre:', { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
-
-    // Creamos un elemento DOM para el input (requiere habilitar dom: { createContainer: true } en el config)
-    let inputElement = this.add.dom(400, 300, 'input', {
-      type: 'text',
-      name: 'playerName',
-      placeholder: 'Tu nombre aquí',
+    // Texto que aparece arriba: "Nombra al humano caído" (por ejemplo)
+    this.add.text(400, 50, "Nombra al humano caído.", {
       fontSize: '24px',
-      padding: '10px'
-    });
+      fill: '#fff'
+    }).setOrigin(0.5);
 
-    // Botón para continuar
-    let submitButton = this.add.dom(400, 400, 'button', {
-      fontSize: '24px',
-      padding: '10px'
-    }, 'Continuar');
+    // Texto que mostrará el nombre que vamos armando
+    this.nameDisplay = this.add.text(400, 100, this.typedName, {
+      fontSize: '28px',
+      fill: '#fff'
+    }).setOrigin(0.5);
 
-    submitButton.addListener('click');
-    submitButton.on('click', () => {
-      let playerName = inputElement.getChildByName('playerName').value;
-      if (playerName === "") {
-        playerName = "Jugador";
+    // Definimos la rejilla de letras (puedes cambiar el contenido y la disposición)
+    this.grid = [
+      ["A","B","C","D","E","F","G"],
+      ["H","I","J","K","L","M","N"],
+      ["O","P","Q","R","S","T","U"],
+      ["V","W","X","Y","Z","-","_"],
+      ["a","b","c","d","e","f","g"],
+      ["h","i","j","k","l","m","n"],
+      ["o","p","q","r","s","t","u"],
+      ["v","w","x","y","z"," "," "],
+      // La última "fila" la usaremos para Salir, Retroceder, Aceptar
+      ["Salir","Retroceder","Aceptar"]
+    ];
+
+    // Arreglo bidimensional para guardar los objetos de texto
+    this.letterObjects = [];
+
+    // Posiciones base en pantalla
+    let startX = 150;
+    let startY = 180;
+    let cellWidth = 60;
+    let cellHeight = 40;
+
+    // Creamos los textos en la escena
+    for (let row = 0; row < this.grid.length; row++) {
+      this.letterObjects[row] = [];
+      for (let col = 0; col < this.grid[row].length; col++) {
+        let letter = this.grid[row][col];
+        // Posición para cada "celda"
+        let x = startX + col * cellWidth;
+        let y = startY + row * cellHeight;
+
+        // Crear objeto de texto
+        let letterText = this.add.text(x, y, letter, {
+          fontSize: '20px',
+          fill: '#fff'
+        });
+        letterText.setOrigin(0.5);
+
+        this.letterObjects[row][col] = letterText;
       }
-      // Pasamos el nombre a la siguiente escena
-      this.scene.start('CharacterSelectScene', { playerName: playerName });
-    });
+    }
+
+    // Crear un rectángulo para resaltar la letra seleccionada
+    this.cursorHighlight = this.add.rectangle(
+      this.letterObjects[0][0].x, // x inicial
+      this.letterObjects[0][0].y, // y inicial
+      40,                         // ancho
+      30                          // alto
+    );
+    this.cursorHighlight.setStrokeStyle(2, 0xffff00);
+    this.cursorHighlight.setOrigin(0.5);
+
+    // Configurar input de teclado
+    this.cursors = this.input.keyboard.createCursorKeys();
+    // Opcional: también permitir WASD
+    this.keyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
+    this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+    this.keyS = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+    this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+
+    // Para confirmar selección
+    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+  }
+
+  update() {
+    // Mover cursor con flechas o WASD
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.left) || Phaser.Input.Keyboard.JustDown(this.keyA)) {
+      this.moveCursor(0, -1);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.right) || Phaser.Input.Keyboard.JustDown(this.keyD)) {
+      this.moveCursor(0, 1);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.up) || Phaser.Input.Keyboard.JustDown(this.keyW)) {
+      this.moveCursor(-1, 0);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.down) || Phaser.Input.Keyboard.JustDown(this.keyS)) {
+      this.moveCursor(1, 0);
+    }
+
+    // Confirmar selección con ENTER o SPACE
+    if (Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+      this.selectCurrentCell();
+    }
+  }
+
+  moveCursor(rowDelta, colDelta) {
+    // Calculamos la nueva posición
+    let newRow = this.cursorRow + rowDelta;
+    let newCol = this.cursorCol + colDelta;
+
+    // Limitar para que no se salga de la rejilla
+    if (newRow < 0) newRow = 0;
+    if (newRow >= this.grid.length) newRow = this.grid.length - 1;
+    if (newCol < 0) newCol = 0;
+    if (newCol >= this.grid[newRow].length) newCol = this.grid[newRow].length - 1;
+
+    this.cursorRow = newRow;
+    this.cursorCol = newCol;
+
+    // Actualizar la posición del rectángulo de resaltado
+    let letterText = this.letterObjects[this.cursorRow][this.cursorCol];
+    this.cursorHighlight.x = letterText.x;
+    this.cursorHighlight.y = letterText.y;
+  }
+
+  selectCurrentCell() {
+    let selectedLetter = this.grid[this.cursorRow][this.cursorCol];
+
+    // Comportamiento especial si estamos en la última fila:
+    // ["Salir","Retroceder","Aceptar"]
+    if (this.cursorRow === this.grid.length - 1) {
+      if (selectedLetter === "Salir") {
+        // Lógica para salir (volver a otra escena o menú)
+        this.scene.start('IntroScene');  // o la escena que quieras
+      } else if (selectedLetter === "Retroceder") {
+        // Elimina la última letra ingresada
+        this.typedName = this.typedName.slice(0, -1);
+        this.nameDisplay.setText(this.typedName);
+      } else if (selectedLetter === "Aceptar") {
+        // Confirmamos el nombre y pasamos a la siguiente escena
+        console.log("Nombre final:", this.typedName);
+        // Podrías enviarlo a la escena de selección de raza
+        this.scene.start('CharacterSelectScene', { playerName: this.typedName });
+      }
+    } else {
+      // Si no es la última fila, se añade la letra al nombre
+      this.typedName += selectedLetter;
+      this.nameDisplay.setText(this.typedName);
+    }
   }
 }
 
