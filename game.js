@@ -5,7 +5,7 @@ class IntroScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('introBG', 'assets/intro.jpg');
+    this.load.image('introBG', 'assets/intro.png');
   }
 
   create() {
@@ -259,136 +259,278 @@ class CharacterSelectScene extends Phaser.Scene {
   }
 }
 
-// Escena principal del juego
+// ======================
+// MainGameScene
+// ======================
 class MainGameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MainGameScene' });
+    this.roomsCompleted = 0;
+    this.coins = 0;
+  }
+
+  init(data) {
+    // 'data' debe contener la selección: "human", "chimera" o "mechanita"
+    this.playerRace = data.race || 'human';
+    this.playerName = data.playerName || "Jugador";
+    this.roomsCompleted = data.roomsCompleted || 0;
+    this.coins = data.coins || 0;
   }
 
   preload() {
-    // Fondo
-    this.load.image('roomBackground', 'assets/fondos/roomBackground.png');
-
-    // Plataforma
-    this.load.image('platform', 'assets/platform.png');
-
-    // Jugador
-    this.load.spritesheet('player', 'assets/player.png', { frameWidth: 32, frameHeight: 48 });
-
-    // Moneda animada
-    this.load.spritesheet('coinAnim', 'assets/monedas/coins.png', { frameWidth: 16, frameHeight: 16 });
-
-    // Enemigo
-    this.load.spritesheet('enemy', 'assets/enemigos/IdleChiken.png', { frameWidth: 32, frameHeight: 32 });
+    // Cargar assets según la selección del jugador:
+    if (this.playerRace === 'human') {
+      this.load.image('roomBackground', 'assets/Human-Player/HumanBack.png');
+      this.load.image('platform', 'assets/Human-Player/platform.png');
+      this.load.spritesheet('coinAnim', 'assets/Human-Player/coin.png', { frameWidth: 16, frameHeight: 16 });
+      this.load.spritesheet('enemy', 'assets/Human-Player/IdleEnemy.png', { frameWidth: 448 / 15, frameHeight: 34 });
+      this.load.image('door', 'assets/Human-Player/Door-Human.png');
+      this.load.image('boss', 'assets/Human-Player/boss.png');
+      this.load.image('shop', 'assets/Human-Player/shop.png');
+    } else if (this.playerRace === 'chimera') {
+      this.load.image('roomBackground', 'assets/Quimera-Player/Quimerasback.png');
+      this.load.image('platform', 'assets/Quimera-Player/platform.png');
+      this.load.spritesheet('coinAnim', 'assets/Quimera-Player/coin.png', { frameWidth: 16, frameHeight: 16 });
+      this.load.spritesheet('enemy', 'assets/Quimera-Player/IdleEnemy.png', { frameWidth: 448 / 15, frameHeight: 34 });
+      this.load.image('door', 'assets/Quimera-Player/Door-Quimera.png');
+      this.load.image('boss', 'assets/Quimera-Player/boss.png');
+      this.load.image('shop', 'assets/Quimera-Player/shop.png');
+    } else if (this.playerRace === 'mechanita') {
+      this.load.image('roomBackground', 'assets/Robot-Player/RobotBack.png');
+      this.load.image('platform', 'assets/Robot-Player/platform.png');
+      this.load.spritesheet('coinAnim', 'assets/Robot-Player/coin.png', { frameWidth: 16, frameHeight: 16 });
+      this.load.spritesheet('enemy', 'assets/Robot-Player/IdleEnemy.png', { frameWidth: 448 / 15, frameHeight: 34 });
+      this.load.image('door', 'assets/Robot-Player/Door-Robot.png');
+      this.load.image('boss', 'assets/Robot-Player/boss.png');
+      this.load.image('shop', 'assets/Robot-Player/shop.png');
+    }
+    // Nota: Los sprites de los personajes se cargaron en CharacterSelectScene.
   }
 
   create() {
-    // Fondo
+    // Agregar el fondo
     this.add.image(400, 300, 'roomBackground');
 
-    // Configurar físicas del mundo
-    this.physics.world.setBounds(0, 0, 800, 600);
-    // Gravity
-    // Si quieres salto, pon algo como:
+    // Configurar la gravedad para el jugador (mientras que las monedas la desactivamos)
     this.physics.world.gravity.y = 600;
+    this.physics.world.setBounds(0, 0, 800, 600);
 
-    // Plataformas
+    // Crear plataformas estáticas
     this.platforms = this.physics.add.staticGroup();
     this.platforms.create(400, 580, 'platform').setScale(2).refreshBody();
     this.platforms.create(600, 400, 'platform');
     this.platforms.create(50, 250, 'platform');
+    this.platforms.create(750, 220, 'platform');
 
-    // Jugador
-    this.player = this.physics.add.sprite(100, 450, 'player');
+    // Crear al jugador usando la clave seleccionada (las claves usadas en CharacterSelectScene son: "human", "chimera", "mechanita")
+    this.player = this.physics.add.sprite(100, 450, this.playerRace);
     this.player.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this.platforms);
 
-    // Animación del jugador (ejemplo)
-    this.anims.create({
-      key: 'playerWalk',
-      frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
-      frameRate: 10,
-      repeat: -1
-    });
-
-    // Monedas
-    this.anims.create({
-      key: 'coinSpin',
-      frames: this.anims.generateFrameNumbers('coinAnim', { start: 0, end: 5 }),
-      frameRate: 10,
-      repeat: -1
-    });
-
-    // Creamos un grupo de monedas
-    this.coinsGroup = this.physics.add.group();
-    // Ejemplo: generar 5 monedas en distintas posiciones
-    for (let i = 0; i < 5; i++) {
-      let x = Phaser.Math.Between(50, 750);
-      let y = Phaser.Math.Between(50, 450);
-      let coin = this.coinsGroup.create(x, y, 'coinAnim');
-      coin.play('coinSpin');
+    // Crear animación de caminata para el jugador, si no existe.
+    if (!this.anims.exists('walk')) {
+      this.anims.create({
+        key: 'walk',
+        frames: this.anims.generateFrameNumbers(this.playerRace, { start: 0, end: 3 }),
+        frameRate: 10,
+        repeat: -1
+      });
     }
+
+    // Crear la animación de la moneda
+    if (!this.anims.exists('coinSpin')) {
+      let coinFrames = this.anims.generateFrameNumbers('coinAnim', { start: 0, end: 5 });
+      this.anims.create({
+        key: 'coinSpin',
+        frames: coinFrames,
+        frameRate: 10,
+        repeat: -1
+      });
+    }
+
+    // Grupo de monedas: Se crean sin gravedad para que queden suspendidas
+    this.coinsGroup = this.physics.add.group();
+    this.spawnCoins();
     this.physics.add.collider(this.coinsGroup, this.platforms);
     this.physics.add.overlap(this.player, this.coinsGroup, this.collectCoin, null, this);
 
-    // Enemigos
-    this.anims.create({
-      key: 'enemyWalk',
-      frames: this.anims.generateFrameNumbers('enemy', { start: 0, end: 3 }),
-      frameRate: 6,
-      repeat: -1
-    });
+    // Crear animación para el enemigo (15 frames)
+    if (!this.anims.exists('enemyWalk')) {
+      this.anims.create({
+        key: 'enemyWalk',
+        frames: this.anims.generateFrameNumbers('enemy', { start: 0, end: 14 }),
+        frameRate: 10,
+        repeat: -1
+      });
+    }
+    // Grupo de enemigos
     this.enemies = this.physics.add.group();
-    let enemy = this.enemies.create(300, 450, 'enemy');
+    let enemy = this.enemies.create(500, 450, 'enemy');
     enemy.play('enemyWalk');
     enemy.setCollideWorldBounds(true);
-    // Colisionar con plataformas
     this.physics.add.collider(this.enemies, this.platforms);
-    // Overlap con el jugador
     this.physics.add.overlap(this.player, this.enemies, this.playerHit, null, this);
 
-    // Controles
+    // Crear la puerta en una pared aleatoria
+    this.spawnDoor();
+
+    // Configurar controles (teclas de cursor)
     this.cursors = this.input.keyboard.createCursorKeys();
+
+    // Mostrar el progreso
+    this.scoreText = this.add.text(16, 16, `Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`, {
+      fontSize: '20px',
+      fill: '#fff'
+    });
   }
 
   update() {
-    // Movimiento del jugador
+    // Movimiento horizontal
     if (this.cursors.left.isDown) {
       this.player.setVelocityX(-160);
-      this.player.anims.play('playerWalk', true);
+      this.player.anims.play('walk', true);
       this.player.flipX = true;
     } else if (this.cursors.right.isDown) {
       this.player.setVelocityX(160);
-      this.player.anims.play('playerWalk', true);
+      this.player.anims.play('walk', true);
       this.player.flipX = false;
     } else {
       this.player.setVelocityX(0);
       this.player.anims.stop();
     }
-
-    // Salto
+    
+    // Salto: solo si el jugador está tocando el suelo
     if (this.cursors.up.isDown && this.player.body.touching.down) {
       this.player.setVelocityY(-330);
+    }
+    
+    // Wall jump (opcional, si se detecta contacto lateral)
+    if (this.cursors.up.isDown && (this.player.body.blocked.left || this.player.body.blocked.right)) {
+      this.player.setVelocityY(-330);
+      if (this.player.body.blocked.left) {
+        this.player.setVelocityX(160);
+      } else if (this.player.body.blocked.right) {
+        this.player.setVelocityX(-160);
+      }
+    }
+  }
+
+  spawnCoins() {
+    this.coinsGroup.clear(true, true);
+    for (let i = 0; i < 7; i++) {
+      let x = Phaser.Math.Between(100, 700);
+      let y = Phaser.Math.Between(100, 500);
+      let coin = this.coinsGroup.create(x, y, 'coinAnim');
+      coin.body.allowGravity = false;
+      coin.play('coinSpin');
     }
   }
 
   collectCoin(player, coin) {
     coin.disableBody(true, true);
-    // Suma a un contador de monedas
+    this.coins++;
+    this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
+    if (this.coins >= 7 && this.door.locked) {
+      this.door.locked = false;
+      this.door.clearTint();
+      console.log("¡Puerta desbloqueada!");
+    }
+  }
+
+  spawnDoor() {
+    let side = Phaser.Math.RND.pick(["left", "right", "top", "bottom"]);
+    let doorX, doorY;
+    if (side === "left") {
+      doorX = 50;
+      doorY = Phaser.Math.Between(100, 500);
+    } else if (side === "right") {
+      doorX = 750;
+      doorY = Phaser.Math.Between(100, 500);
+    } else if (side === "top") {
+      doorX = Phaser.Math.Between(100, 700);
+      doorY = 50;
+    } else if (side === "bottom") {
+      doorX = Phaser.Math.Between(100, 700);
+      doorY = 550;
+    }
+    this.door = this.physics.add.sprite(doorX, doorY, 'door');
+    this.door.locked = true;
+    this.door.setTint(0xff0000);
+    this.door.side = side;
+    this.physics.add.overlap(this.player, this.door, this.enterDoor, null, this);
+  }
+
+  enterDoor(player, door) {
+    if (!door.locked) {
+      let offset = 40;
+      if (door.side === "left") {
+        player.x = door.x + offset;
+      } else if (door.side === "right") {
+        player.x = door.x - offset;
+      } else if (door.side === "top") {
+        player.y = door.y + offset;
+      } else if (door.side === "bottom") {
+        player.y = door.y - offset;
+      }
+      this.completeRoom();
+    }
+  }
+
+  completeRoom() {
+    this.roomsCompleted++;
+    this.coins = 0;
+    this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
+    if (this.roomsCompleted % 10 === 0) {
+      this.spawnBoss();
+    } else if (this.roomsCompleted % 7 === 0) {
+      this.spawnShop();
+    } else {
+      this.resetRoom();
+    }
+  }
+
+  resetRoom() {
+    this.spawnCoins();
+    if (this.door) {
+      this.door.destroy();
+    }
+    this.spawnDoor();
+  }
+
+  spawnBoss() {
+    console.log("¡Boss!");
+    let bossSprite = this.add.image(400, 300, 'boss');
+    this.physics.add.existing(bossSprite);
+    this.time.delayedCall(5000, () => {
+      bossSprite.destroy();
+      this.resetRoom();
+    }, null, this);
+  }
+
+  spawnShop() {
+    console.log("¡Tienda!");
+    let shopSprite = this.add.image(400, 300, 'shop');
+    this.physics.pause();
+    this.time.delayedCall(5000, () => {
+      shopSprite.destroy();
+      this.physics.resume();
+      this.resetRoom();
+    }, null, this);
   }
 
   playerHit(player, enemy) {
-    // Manejar colisión con el enemigo (ej: restar vida)
+    console.log("¡Enemigo impactado!");
   }
 }
 
-
+// ======================
 // Configuración de Phaser
+// ======================
 const config = {
   type: Phaser.AUTO,
   width: 800,
   height: 600,
-  dom: { createContainer: true }, // si usaras inputs HTML
+  dom: { createContainer: true },
   physics: {
     default: 'arcade',
     arcade: { gravity: { y: 0 }, debug: false }
@@ -397,7 +539,6 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  // El orden de escenas define el flujo
   scene: [
     IntroScene,
     NameSelectScene,
