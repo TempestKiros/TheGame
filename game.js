@@ -243,7 +243,7 @@ class MainGameScene extends Phaser.Scene {
       this.load.image('roomBackground', 'assets/Quimera-Player/Quimerasback.png');
       this.load.image('platform', 'assets/Quimera-Player/platform.png');
       this.load.spritesheet('coinAnim', 'assets/Quimera-Player/coin.png', { frameWidth: 16, frameHeight: 16 });
-      this.load.spritesheet('enemy', 'assets/Quimera-Player/IdleEnemy.png', { frameWidth: 448 / 15, frameHeight: 34 });
+      this.load.spritesheet('enemy', 'assets/Quimera-Player/IdleEnemy.png', { frameWidth: 572 / 11, frameHeight: 34 });
       this.load.image('door', 'assets/Quimera-Player/Door-Quimera.png');
       this.load.image('boss', 'assets/Quimera-Player/boss.png');
       this.load.image('shop', 'assets/Quimera-Player/shop.png');
@@ -262,7 +262,7 @@ class MainGameScene extends Phaser.Scene {
       this.load.image('roomBackground', 'assets/Robot-Player/RobotBack.png');
       this.load.image('platform', 'assets/Robot-Player/platform.png');
       this.load.spritesheet('coinAnim', 'assets/Robot-Player/coin.png', { frameWidth: 16, frameHeight: 16 });
-      this.load.spritesheet('enemy', 'assets/Robot-Player/IdleEnemy.png', { frameWidth: 38 / 10, frameHeight: 34 });
+      this.load.spritesheet('enemy', 'assets/Robot-Player/IdleEnemy.png', { frameWidth: 440 / 10, frameHeight: 30 });
       this.load.image('door', 'assets/Robot-Player/Door-Robot.png');
       this.load.image('boss', 'assets/Robot-Player/boss.png');
       this.load.image('shop', 'assets/Robot-Player/shop.png');
