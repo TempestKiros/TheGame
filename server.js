@@ -2,11 +2,15 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const path = require('path');
+const cors = require('cors'); // <-- Importar cors
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Conexión a MongoDB (reemplaza <usuario>, <contraseña> y <tu-cluster> según corresponda)
+// Habilitar CORS para todas las solicitudes
+app.use(cors());
+
+// Conexión a MongoDB
 mongoose.connect('mongodb://localhost:27017/roguelikeDB', {
   useNewUrlParser: true,
   useUnifiedTopology: true
