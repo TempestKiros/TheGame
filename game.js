@@ -598,7 +598,7 @@ class MainGameScene extends Phaser.Scene {
 }
 
 // ======================
-// GameOverScene
+// Game Over Scene Mejorado
 // ======================
 class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -608,17 +608,14 @@ class GameOverScene extends Phaser.Scene {
   create() {
       const { width, height } = this.cameras.main;
       
-      // Fondo negro estilo arcade
       this.cameras.main.setBackgroundColor('#000');
       
-      // Texto de Game Over
-      this.add.text(width / 2, height / 3, 'GAME OVER', {
+      this.add.text(width / 2, height / 4, 'GAME OVER', {
           fontSize: '32px',
           fontFamily: 'Press Start 2P',
           color: '#FF0000'
       }).setOrigin(0.5);
-      
-      // Botón para reiniciar el juego
+
       let restartButton = this.add.text(width / 2, height / 2, 'RETRY', {
           fontSize: '20px',
           fontFamily: 'Press Start 2P',
@@ -631,7 +628,6 @@ class GameOverScene extends Phaser.Scene {
           this.scene.start('MainGameScene');
       });
 
-      // Botón para ver el leaderboard
       let leaderboardButton = this.add.text(width / 2, height / 2 + 50, 'LEADERBOARD', {
           fontSize: '20px',
           fontFamily: 'Press Start 2P',
@@ -646,6 +642,51 @@ class GameOverScene extends Phaser.Scene {
   }
 }
 
+// ======================
+// Leaderboard Scene Mejorado
+// ======================
+class LeaderboardScene extends Phaser.Scene {
+  constructor() {
+      super({ key: 'LeaderboardScene' });
+  }
+
+  create() {
+      const { width, height } = this.cameras.main;
+      this.cameras.main.setBackgroundColor('#000');
+
+      this.add.text(width / 2, 50, 'SCORE RANKING', {
+          fontSize: '24px',
+          fontFamily: 'Press Start 2P',
+          color: '#FFA500'
+      }).setOrigin(0.5);
+
+      fetch('http://localhost:3000/api/leaderboard')
+          .then(res => res.json())
+          .then(data => {
+              data.forEach((entry, index) => {
+                  let score = (entry.coins * entry.rooms) + (entry.bosses || 0);
+                  this.add.text(width / 4, 100 + index * 30, `${index + 1}º`, {
+                      fontSize: '20px', color: '#FFFFFF', fontFamily: 'Press Start 2P'
+                  }).setOrigin(0.5);
+                  this.add.text(width / 2, 100 + index * 30, score, {
+                      fontSize: '20px', color: '#FFFF00', fontFamily: 'Press Start 2P'
+                  }).setOrigin(0.5);
+                  this.add.text((width / 4) * 3, 100 + index * 30, entry.name, {
+                      fontSize: '20px', color: '#00FFFF', fontFamily: 'Press Start 2P'
+                  }).setOrigin(0.5);
+              });
+          });
+
+      let backButton = this.add.text(width / 2, height - 50, 'BACK', {
+          fontSize: '20px', fontFamily: 'Press Start 2P', color: '#FFFFFF', backgroundColor: '#FF0000',
+          padding: { left: 10, right: 10, top: 5, bottom: 5 }
+      }).setOrigin(0.5).setInteractive();
+
+      backButton.on('pointerdown', () => {
+          this.scene.start('GameOverScene');
+      });
+  }
+}
 // ======================
 // Configuración de Phaser
 // ======================
