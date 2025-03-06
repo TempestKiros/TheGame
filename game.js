@@ -1,38 +1,34 @@
-// Escena de introducción (estilo Undertale)
+// ======================
+// IntroScene
+// ======================
 class IntroScene extends Phaser.Scene {
   constructor() {
     super({ key: 'IntroScene' });
   }
-
   preload() {
     this.load.image('introBG', 'assets/intro.png');
   }
-
   create() {
-    // Fondo
     this.add.image(400, 300, 'introBG');
-
-    // Texto introductorio con wordWrap para que no se corte
     const introText = 
       "En un mundo steampunk donde tecnología, magia y artes se entrelazan,\n" +
       "la historia de antiguos reinos y razas olvidadas renace...\n\n" +
       "Presiona cualquier tecla para continuar.";
-
     this.add.text(400, 100, introText, {
       fontSize: '24px',
       fill: '#fff',
       align: 'center',
       wordWrap: { width: 600, useAdvancedWrap: true }
     }).setOrigin(0.5);
-
-    // Al presionar cualquier tecla, pasamos a la escena de selección de nombre
     this.input.keyboard.once('keydown', () => {
       this.scene.start('NameSelectScene');
     });
   }
 }
 
-// Escena de selección de nombre al estilo Undertale (grid de letras)
+// ======================
+// NameSelectScene (Selector de Nombre estilo Undertale)
+// ======================
 class NameSelectScene extends Phaser.Scene {
   constructor() {
     super({ key: 'NameSelectScene' });
@@ -40,24 +36,12 @@ class NameSelectScene extends Phaser.Scene {
     this.cursorRow = 0;
     this.cursorCol = 0;
   }
-
   preload() {
     // Carga de fuentes o imágenes si las necesitas
   }
-
   create() {
-    // Título y display del nombre
-    this.add.text(400, 50, "Nombra al humano caído.", {
-      fontSize: '24px',
-      fill: '#fff'
-    }).setOrigin(0.5);
-    
-    this.nameDisplay = this.add.text(400, 100, this.typedName, {
-      fontSize: '28px',
-      fill: '#fff'
-    }).setOrigin(0.5);
-    
-    // Definición de la rejilla (última fila se ajusta para centrar los botones)
+    this.add.text(400, 50, "Nombra al humano caído.", { fontSize: '24px', fill: '#fff' }).setOrigin(0.5);
+    this.nameDisplay = this.add.text(400, 100, this.typedName, { fontSize: '28px', fill: '#fff' }).setOrigin(0.5);
     this.grid = [
       ["A","B","C","D","E","F","G"],
       ["H","I","J","K","L","M","N"],
@@ -67,48 +51,27 @@ class NameSelectScene extends Phaser.Scene {
       ["h","i","j","k","l","m","n"],
       ["o","p","q","r","s","t","u"],
       ["v","w","x","y","z"," "," "],
-      // Para acciones, creamos 3 celdas centradas en un ancho mayor:
       ["Salir","Retroceder","Aceptar"]
     ];
-    
     this.letterObjects = [];
-    // Definimos la posición base y tamaño de las celdas
-    let startX = 150;
-    let startY = 180;
-    let cellWidth = 60;
-    let cellHeight = 40;
-    
-    // Para filas normales, usamos cellWidth; para la fila de acciones, usamos un ancho mayor
+    let startX = 150, startY = 180, cellWidth = 60, cellHeight = 40;
     for (let row = 0; row < this.grid.length; row++) {
       this.letterObjects[row] = [];
-      // Si es la última fila (acciones), centramos usando un ancho mayor para cada celda
       let isActions = row === this.grid.length - 1;
       let currentCellWidth = isActions ? 200 : cellWidth;
       let offsetX = isActions ? (800 - currentCellWidth * this.grid[row].length) / 2 : startX;
-      
       for (let col = 0; col < this.grid[row].length; col++) {
         let letter = this.grid[row][col];
         let x = offsetX + col * currentCellWidth + currentCellWidth / 2;
         let y = startY + row * cellHeight;
-        let letterText = this.add.text(x, y, letter, {
-          fontSize: '20px',
-          fill: '#fff'
-        }).setOrigin(0.5);
+        let letterText = this.add.text(x, y, letter, { fontSize: '20px', fill: '#fff' }).setOrigin(0.5);
         this.letterObjects[row][col] = letterText;
       }
     }
-    
-    // Rectángulo para resaltar la celda seleccionada
     this.cursorHighlight = this.add.rectangle(
-      this.letterObjects[0][0].x,
-      this.letterObjects[0][0].y,
-      40,
-      30
+      this.letterObjects[0][0].x, this.letterObjects[0][0].y, 40, 30
     );
-    this.cursorHighlight.setStrokeStyle(2, 0xffff00);
-    this.cursorHighlight.setOrigin(0.5);
-    
-    // Configuración de controles
+    this.cursorHighlight.setStrokeStyle(2, 0xffff00).setOrigin(0.5);
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
     this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
@@ -117,9 +80,7 @@ class NameSelectScene extends Phaser.Scene {
     this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
   }
-  
   update() {
-    // Mover el cursor
     if (Phaser.Input.Keyboard.JustDown(this.cursors.left) || Phaser.Input.Keyboard.JustDown(this.keyA)) {
       this.moveCursor(0, -1);
     }
@@ -132,28 +93,16 @@ class NameSelectScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.cursors.down) || Phaser.Input.Keyboard.JustDown(this.keyS)) {
       this.moveCursor(1, 0);
     }
-    
-    // Confirmar selección
     if (Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
       this.selectCurrentCell();
     }
   }
-  
   moveCursor(rowDelta, colDelta) {
-    let newRow = this.cursorRow + rowDelta;
-    let newCol = this.cursorCol + colDelta;
-    if (newRow < 0) newRow = 0;
-    if (newRow >= this.grid.length) newRow = this.grid.length - 1;
-    if (newCol < 0) newCol = 0;
-    if (newCol >= this.grid[newRow].length) newCol = this.grid[newRow].length - 1;
-    
-    this.cursorRow = newRow;
-    this.cursorCol = newCol;
-    let letterText = this.letterObjects[this.cursorRow][this.cursorCol];
-    this.cursorHighlight.x = letterText.x;
-    this.cursorHighlight.y = letterText.y;
-    
-    // Agrega un pequeño "temblor" al mover el cursor usando un tween
+    let newRow = Phaser.Math.Clamp(this.cursorRow + rowDelta, 0, this.grid.length - 1);
+    let newCol = Phaser.Math.Clamp(this.cursorCol + colDelta, 0, this.grid[newRow].length - 1);
+    this.cursorRow = newRow; this.cursorCol = newCol;
+    let letterText = this.letterObjects[newRow][newCol];
+    this.cursorHighlight.x = letterText.x; this.cursorHighlight.y = letterText.y;
     this.tweens.add({
       targets: this.cursorHighlight,
       scaleX: 1.1,
@@ -162,13 +111,9 @@ class NameSelectScene extends Phaser.Scene {
       duration: 50
     });
   }
-  
   selectCurrentCell() {
     let selectedLetter = this.grid[this.cursorRow][this.cursorCol];
-    
-    // Si estamos en la última fila (acciones)
     if (this.cursorRow === this.grid.length - 1) {
-      // Pequeña animación de temblor en el botón seleccionado
       this.tweens.add({
         targets: this.letterObjects[this.cursorRow][this.cursorCol],
         angle: { from: -5, to: 5 },
@@ -176,7 +121,6 @@ class NameSelectScene extends Phaser.Scene {
         duration: 50,
         repeat: 2
       });
-      
       if (selectedLetter === "Salir") {
         this.scene.start('IntroScene');
       } else if (selectedLetter === "Retroceder") {
@@ -186,7 +130,6 @@ class NameSelectScene extends Phaser.Scene {
         this.scene.start('CharacterSelectScene', { playerName: this.typedName });
       }
     } else {
-      // Agregar la letra al nombre y aplicar un temblor rápido al texto
       this.typedName += selectedLetter;
       this.nameDisplay.setText(this.typedName);
       this.tweens.add({
@@ -200,25 +143,24 @@ class NameSelectScene extends Phaser.Scene {
   }
 }
 
-// Escena de selección de personaje
+// ======================
+// CharacterSelectScene
+// ======================
 class CharacterSelectScene extends Phaser.Scene {
   constructor() {
     super({ key: 'CharacterSelectScene' });
   }
-
   preload() {
-    // Cargar spritesheets para personajes
+    // Cargar spritesheets para personajes (asegúrate de que las rutas sean correctas)
     this.load.spritesheet('human', 'assets/Human-Player/IdleHuman.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('chimera', 'assets/Quimera-Player/IdleQuimera.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('mechanita', 'assets/Robot-Player/IdleRobot.png', { frameWidth: 32, frameHeight: 32 });
   }
-
   create(data) {
     let playerName = data.playerName || "Jugador";
     this.add.text(400, 50, `Bienvenido, ${playerName}`, { fontSize: '28px', fill: '#fff' }).setOrigin(0.5);
     this.add.text(400, 100, 'Elige tu personaje', { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
     
-    // Crear animaciones para cada personaje (ajusta frames según tus assets)
     this.anims.create({
       key: 'humanAnim',
       frames: this.anims.generateFrameNumbers('human', { start: 0, end: 3 }),
@@ -238,7 +180,6 @@ class CharacterSelectScene extends Phaser.Scene {
       repeat: -1
     });
     
-    // Posiciones para los personajes
     let humanSprite = this.add.sprite(200, 300, 'human').setInteractive();
     humanSprite.play('humanAnim');
     humanSprite.on('pointerdown', () => {
@@ -260,7 +201,7 @@ class CharacterSelectScene extends Phaser.Scene {
 }
 
 // ======================
-// MainGameScene
+// MainGameScene (con animaciones adicionales y mecánica de stomp)
 // ======================
 class MainGameScene extends Phaser.Scene {
   constructor() {
@@ -268,25 +209,33 @@ class MainGameScene extends Phaser.Scene {
     this.roomsCompleted = 0;
     this.coins = 0;
   }
-
   init(data) {
-    // 'data' debe contener la selección: "human", "chimera" o "mechanita"
     this.playerRace = data.race || 'human';
     this.playerName = data.playerName || "Jugador";
     this.roomsCompleted = data.roomsCompleted || 0;
     this.coins = data.coins || 0;
   }
-
   preload() {
     // Cargar assets según la selección del jugador:
     if (this.playerRace === 'human') {
       this.load.image('roomBackground', 'assets/Human-Player/HumanBack.png');
       this.load.image('platform', 'assets/Human-Player/platform.png');
       this.load.spritesheet('coinAnim', 'assets/Human-Player/coin.png', { frameWidth: 16, frameHeight: 16 });
-      this.load.spritesheet('enemy', 'assets/Human-Player/IdleEnemy.png', { frameWidth: 448 / 15, frameHeight: 34 });
+      this.load.spritesheet('enemy', 'assets/Chiken/IdleChiken.png', { frameWidth: 448 / 15, frameHeight: 34 });
       this.load.image('door', 'assets/Human-Player/Door-Human.png');
       this.load.image('boss', 'assets/Human-Player/boss.png');
       this.load.image('shop', 'assets/Human-Player/shop.png');
+
+      // Animaciones adicionales
+      this.load.spritesheet('humanDoubleJump', 'assets/Human-Player/DoubleJumpHuman.png', { frameWidth: 32, frameHeight: 32 });
+      this.load.spritesheet('humanFall', 'assets/Human-Player/FallHuman.png', { frameWidth: 32, frameHeight: 32 });
+      this.load.spritesheet('humanJump', 'assets/Human-Player/JumpHuman.png', { frameWidth: 32, frameHeight: 32 });
+      this.load.spritesheet('humanWallJump', 'assets/Human-Player/WallJumpHuman.png', { frameWidth: 32, frameHeight: 32 });
+      this.load.spritesheet('humanHit', 'assets/Human-Player/HitHuman.png', { frameWidth: 32, frameHeight: 32 });
+
+      this.load.spritesheet('humanJumpHit', 'assets/Human-Player/humanJumpHit.png', { frameWidth: 32, frameHeight: 32 });
+
+
     } else if (this.playerRace === 'chimera') {
       this.load.image('roomBackground', 'assets/Quimera-Player/Quimerasback.png');
       this.load.image('platform', 'assets/Quimera-Player/platform.png');
@@ -295,6 +244,17 @@ class MainGameScene extends Phaser.Scene {
       this.load.image('door', 'assets/Quimera-Player/Door-Quimera.png');
       this.load.image('boss', 'assets/Quimera-Player/boss.png');
       this.load.image('shop', 'assets/Quimera-Player/shop.png');
+
+      // Animaciones adicionales para Quimera
+      this.load.spritesheet('chimeraDoubleJump', 'assets/Quimera-Player/DoubleJumpQuimera.png', { frameWidth: 32, frameHeight: 32 });
+      this.load.spritesheet('chimeraFall', 'assets/Quimera-Player/FallQuimera.png', { frameWidth: 32, frameHeight: 32 });
+      this.load.spritesheet('chimeraJump', 'assets/Quimera-Player/JumpQuimera.png', { frameWidth: 32, frameHeight: 32 });
+      this.load.spritesheet('chimeraWallJump', 'assets/Quimera-Player/WallJumpQuimera.png', { frameWidth: 32, frameHeight: 32 });
+      this.load.spritesheet('chimeraHit', 'assets/Quimera-Player/HitQuimera.png', { frameWidth: 32, frameHeight: 32 });
+
+      this.load.spritesheet('chimeraJumpHit', 'assets/Quimera-Player/QuimeraJumpHit.png', { frameWidth: 32, frameHeight: 32 });
+
+
     } else if (this.playerRace === 'mechanita') {
       this.load.image('roomBackground', 'assets/Robot-Player/RobotBack.png');
       this.load.image('platform', 'assets/Robot-Player/platform.png');
@@ -303,31 +263,33 @@ class MainGameScene extends Phaser.Scene {
       this.load.image('door', 'assets/Robot-Player/Door-Robot.png');
       this.load.image('boss', 'assets/Robot-Player/boss.png');
       this.load.image('shop', 'assets/Robot-Player/shop.png');
+
+      // Animaciones adicionales para Robot
+      this.load.spritesheet('mechanitaDoubleJump', 'assets/Robot-Player/DoubleJumpRobot.png', { frameWidth: 32, frameHeight: 32 });
+      this.load.spritesheet('mechanitaFall', 'assets/Robot-Player/FallRobot.png', { frameWidth: 32, frameHeight: 32 });
+      this.load.spritesheet('mechanitaJump', 'assets/Robot-Player/JumpRobot.png', { frameWidth: 32, frameHeight: 32 });
+      this.load.spritesheet('mechanitaWallJump', 'assets/Robot-Player/WallJumpRobot.png', { frameWidth: 32, frameHeight: 32 });
+      this.load.spritesheet('mechanitaHit', 'assets/Robot-Player/HitRobot.png', { frameWidth: 32, frameHeight: 32 });
+
+      this.load.spritesheet('mechanitaJumpHit', 'assets/Robot-Player/RobotJumpHit.png', { frameWidth: 32, frameHeight: 32 });
+
     }
     // Nota: Los sprites de los personajes se cargaron en CharacterSelectScene.
   }
-
   create() {
-    // Agregar el fondo
     this.add.image(400, 300, 'roomBackground');
-
-    // Configurar la gravedad para el jugador (mientras que las monedas la desactivamos)
     this.physics.world.gravity.y = 600;
     this.physics.world.setBounds(0, 0, 800, 600);
-
-    // Crear plataformas estáticas
     this.platforms = this.physics.add.staticGroup();
     this.platforms.create(400, 580, 'platform').setScale(2).refreshBody();
     this.platforms.create(600, 400, 'platform');
     this.platforms.create(50, 250, 'platform');
     this.platforms.create(750, 220, 'platform');
-
-    // Crear al jugador usando la clave seleccionada (las claves usadas en CharacterSelectScene son: "human", "chimera", "mechanita")
+    
+    // Crear al jugador
     this.player = this.physics.add.sprite(100, 450, this.playerRace);
     this.player.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this.platforms);
-
-    // Crear animación de caminata para el jugador, si no existe.
     if (!this.anims.exists('walk')) {
       this.anims.create({
         key: 'walk',
@@ -336,8 +298,46 @@ class MainGameScene extends Phaser.Scene {
         repeat: -1
       });
     }
-
-    // Crear la animación de la moneda
+    
+    // Animaciones adicionales para acciones del jugador
+    // Doble salto
+    if (!this.anims.exists('doubleJump')) {
+      this.anims.create({
+        key: 'doubleJump',
+        frames: this.anims.generateFrameNumbers(this.playerRace + 'DoubleJump', { start: 0, end: 3 }),
+        frameRate: 10,
+        repeat: 0
+      });
+    }
+    // Caída
+    if (!this.anims.exists('fall')) {
+      this.anims.create({
+        key: 'fall',
+        frames: this.anims.generateFrameNumbers(this.playerRace + 'Fall', { start: 0, end: 3 }),
+        frameRate: 10,
+        repeat: -1
+      });
+    }
+    // Salto hit (stomp)
+    if (!this.anims.exists('jumpHit')) {
+      this.anims.create({
+        key: 'jumpHit',
+        frames: this.anims.generateFrameNumbers(this.playerRace + 'JumpHit', { start: 0, end: 3 }),
+        frameRate: 10,
+        repeat: 0
+      });
+    }
+    // Wall jump
+    if (!this.anims.exists('wallJump')) {
+      this.anims.create({
+        key: 'wallJump',
+        frames: this.anims.generateFrameNumbers(this.playerRace + 'WallJump', { start: 0, end: 3 }),
+        frameRate: 10,
+        repeat: 0
+      });
+    }
+    
+    // Grupo de monedas animadas (sin gravedad)
     if (!this.anims.exists('coinSpin')) {
       let coinFrames = this.anims.generateFrameNumbers('coinAnim', { start: 0, end: 5 });
       this.anims.create({
@@ -347,14 +347,12 @@ class MainGameScene extends Phaser.Scene {
         repeat: -1
       });
     }
-
-    // Grupo de monedas: Se crean sin gravedad para que queden suspendidas
     this.coinsGroup = this.physics.add.group();
     this.spawnCoins();
     this.physics.add.collider(this.coinsGroup, this.platforms);
     this.physics.add.overlap(this.player, this.coinsGroup, this.collectCoin, null, this);
-
-    // Crear animación para el enemigo (15 frames)
+    
+    // Animación y grupo de enemigos
     if (!this.anims.exists('enemyWalk')) {
       this.anims.create({
         key: 'enemyWalk',
@@ -363,29 +361,18 @@ class MainGameScene extends Phaser.Scene {
         repeat: -1
       });
     }
-    // Grupo de enemigos
     this.enemies = this.physics.add.group();
     let enemy = this.enemies.create(500, 450, 'enemy');
     enemy.play('enemyWalk');
     enemy.setCollideWorldBounds(true);
     this.physics.add.collider(this.enemies, this.platforms);
     this.physics.add.overlap(this.player, this.enemies, this.playerHit, null, this);
-
-    // Crear la puerta en una pared aleatoria
+    
     this.spawnDoor();
-
-    // Configurar controles (teclas de cursor)
     this.cursors = this.input.keyboard.createCursorKeys();
-
-    // Mostrar el progreso
-    this.scoreText = this.add.text(16, 16, `Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`, {
-      fontSize: '20px',
-      fill: '#fff'
-    });
+    this.scoreText = this.add.text(16, 16, `Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`, { fontSize: '20px', fill: '#fff' });
   }
-
   update() {
-    // Movimiento horizontal
     if (this.cursors.left.isDown) {
       this.player.setVelocityX(-160);
       this.player.anims.play('walk', true);
@@ -398,15 +385,36 @@ class MainGameScene extends Phaser.Scene {
       this.player.setVelocityX(0);
       this.player.anims.stop();
     }
-    
-    // Salto: solo si el jugador está tocando el suelo
-    if (this.cursors.up.isDown && this.player.body.touching.down) {
-      this.player.setVelocityY(-330);
+    // Salto
+    if (this.cursors.up.isDown) {
+      if (this.player.body.touching.down) {
+        this.player.setVelocityY(-330);
+        // Reproducir animación de salto normal (usamos 'walk' como placeholder si no hay 'jump')
+        if (this.anims.exists('jump')) {
+          this.player.anims.play('jump', true);
+        }
+        this.player.doubleJumped = false; // Reiniciar doble salto
+      } else if (!this.player.body.touching.down && !this.player.doubleJumped) {
+        // Doble salto
+        this.player.setVelocityY(-330);
+        this.player.doubleJumped = true;
+        if (this.anims.exists('doubleJump')) {
+          this.player.anims.play('doubleJump', true);
+        }
+      }
     }
-    
-    // Wall jump (opcional, si se detecta contacto lateral)
+    // Caída: si no toca el suelo y está cayendo
+    if (!this.player.body.touching.down && this.player.body.velocity.y > 0) {
+      if (this.anims.exists('fall')) {
+        this.player.anims.play('fall', true);
+      }
+    }
+    // Wall jump: si se detecta contacto lateral y se presiona salto
     if (this.cursors.up.isDown && (this.player.body.blocked.left || this.player.body.blocked.right)) {
       this.player.setVelocityY(-330);
+      if (this.anims.exists('wallJump')) {
+        this.player.anims.play('wallJump', true);
+      }
       if (this.player.body.blocked.left) {
         this.player.setVelocityX(160);
       } else if (this.player.body.blocked.right) {
@@ -414,7 +422,6 @@ class MainGameScene extends Phaser.Scene {
       }
     }
   }
-
   spawnCoins() {
     this.coinsGroup.clear(true, true);
     for (let i = 0; i < 7; i++) {
@@ -425,7 +432,6 @@ class MainGameScene extends Phaser.Scene {
       coin.play('coinSpin');
     }
   }
-
   collectCoin(player, coin) {
     coin.disableBody(true, true);
     this.coins++;
@@ -436,7 +442,6 @@ class MainGameScene extends Phaser.Scene {
       console.log("¡Puerta desbloqueada!");
     }
   }
-
   spawnDoor() {
     let side = Phaser.Math.RND.pick(["left", "right", "top", "bottom"]);
     let doorX, doorY;
@@ -459,7 +464,6 @@ class MainGameScene extends Phaser.Scene {
     this.door.side = side;
     this.physics.add.overlap(this.player, this.door, this.enterDoor, null, this);
   }
-
   enterDoor(player, door) {
     if (!door.locked) {
       let offset = 40;
@@ -475,7 +479,6 @@ class MainGameScene extends Phaser.Scene {
       this.completeRoom();
     }
   }
-
   completeRoom() {
     this.roomsCompleted++;
     this.coins = 0;
@@ -488,7 +491,6 @@ class MainGameScene extends Phaser.Scene {
       this.resetRoom();
     }
   }
-
   resetRoom() {
     this.spawnCoins();
     if (this.door) {
@@ -496,7 +498,6 @@ class MainGameScene extends Phaser.Scene {
     }
     this.spawnDoor();
   }
-
   spawnBoss() {
     console.log("¡Boss!");
     let bossSprite = this.add.image(400, 300, 'boss');
@@ -506,7 +507,6 @@ class MainGameScene extends Phaser.Scene {
       this.resetRoom();
     }, null, this);
   }
-
   spawnShop() {
     console.log("¡Tienda!");
     let shopSprite = this.add.image(400, 300, 'shop');
@@ -517,9 +517,21 @@ class MainGameScene extends Phaser.Scene {
       this.resetRoom();
     }, null, this);
   }
-
+  // Mecánica de stomp: El jugador debe caer sobre el enemigo para eliminarlo.
   playerHit(player, enemy) {
-    console.log("¡Enemigo impactado!");
+    // Si el jugador está cayendo (velocidadY positiva) y su parte inferior está por encima del enemigo,
+    // lo consideramos stomp.
+    if (player.body.velocity.y > 0 && (player.y + player.height * 0.5) < enemy.y) {
+      enemy.destroy();
+      // Rebota el jugador
+      player.setVelocityY(-200);
+      if (this.anims.exists('jumpHit')) {
+        player.anims.play('jumpHit', true);
+      }
+    } else {
+      console.log("¡El jugador ha sido impactado por el enemigo!");
+      // Aquí podrías implementar daño o reiniciar la sala.
+    }
   }
 }
 
