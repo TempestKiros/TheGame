@@ -207,10 +207,11 @@ class CharacterSelectScene extends Phaser.Scene {
 class MainGameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MainGameScene' });
-    this.roomsCompleted = 0;
-    this.coins = 0; // Inicializa la variable de monedas
-    this.playerHealth = 5; 
+    this.roomsCompleted = 9;
+    this.coins = 30; // Inicializa la variable de monedas
+    this.playerHealth = 32; 
     this.bossesDefeated = 0;
+    this.doorCost = 5;
   }
 
   init(data) {
@@ -308,9 +309,9 @@ class MainGameScene extends Phaser.Scene {
       this.input.keyboard.on('keydown-E', () => {
         console.log("Se presionó E");  // Debug
         this.inventoryContainer.setVisible(!this.inventoryContainer.visible);
-    });
+      });
+    }
   }
-}
 
   create() {
   // Configurar el fondo y la gravedad
@@ -509,6 +510,13 @@ class MainGameScene extends Phaser.Scene {
   }  
   
   resetRoom() {
+
+    if (this.roomsCompleted >= 10) {
+      let extra = Math.floor((this.roomsCompleted - 10) / 10) + 1;
+      this.doorCost = 5 + extra * 5;
+    } else {
+      this.doorCost = 5;
+    }
     this.spawnCoins();
     if (this.door) {
       this.door.destroy();
@@ -565,6 +573,10 @@ class MainGameScene extends Phaser.Scene {
         // Detener el timer de bolas de fuego
         if (bossSprite.fireballTimer) bossSprite.fireballTimer.remove(false);
         if (this.bossHealthBar) this.bossHealthBar.destroy();
+
+        // Llama a dropItem para soltar el objeto
+        this.dropItem(bossSprite.x, bossSprite.y);
+
         bossSprite.destroy();
         this.coins += 20;
         this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
@@ -641,19 +653,24 @@ class MainGameScene extends Phaser.Scene {
   }
   // Drop aleatorio de objetos al derrotar al boss
   dropItem(x, y) {
-      let dropChance = Math.random();
-        if (dropChance <= 0.9) { // 90% de probabilidad de soltar un objeto
-      let items = ['item1', 'item2', 'item3'];
+    let dropChance = Math.random();
+    if (dropChance <= 0.9) { // 90% de probabilidad de soltar un objeto
+      let items = ['huevopascua1', 'huevopascua2', 'huevopascua3'];
       let randomItem = items[Math.floor(Math.random() * items.length)];
       let droppedItem = this.physics.add.sprite(x, y, randomItem);
-
+  
+      // Desactivar la gravedad para que el objeto no caiga
+      droppedItem.body.allowGravity = false;
+  
       this.physics.add.overlap(this.player, droppedItem, (player, item) => {
-          console.log("Item recogido:", item.texture.key);
-          item.destroy();
-          // Aquí puedes agregar lógica para el inventario
-    });
+        console.log("Item recogido:", item.texture.key);
+        this.addToInventory(item.texture.key);
+        item.destroy();
+      });
+    }
   }
-  }
+  
+  
   
   update() {
     // --- Lógica del jugador y enemigos ---
@@ -756,10 +773,10 @@ class MainGameScene extends Phaser.Scene {
   // Cuando el jugador recoja un ítem:
   addToInventory(itemKey) {
     for (let i = 0; i < this.inventoryItems.length; i++) {
-        if (!this.inventoryItems[i].visible) {
-            this.inventoryItems[i].setTexture(itemKey).setVisible(true);
-            break;
-        }
+      if (!this.inventoryItems[i].visible) {
+        this.inventoryItems[i].setTexture(itemKey).setVisible(true);
+        break;
+      }
     }
   }  
   
@@ -792,32 +809,43 @@ class MainGameScene extends Phaser.Scene {
   
     // Eventos para cada opción:
     vidaButton.on('pointerdown', () => {
-      // Agrega o cura 1 vida
-      this.playerHealth++;
-      this.healthText.setText(`Vida: ${this.playerHealth}`);
-      console.log('Comprado +Vida');
+      let cost = 5; // CAMBIO: costo de la compra
+      if (this.coins >= cost) {
+        this.playerHealth++;
+        this.healthText.setText(`Vida: ${this.playerHealth}`);
+        this.coins -= cost;
+        this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
+        console.log('Comprado +Vida');
+      } else {
+        console.log('No tienes suficientes monedas');
+      }
     });
   
     saltoButton.on('pointerdown', () => {
-      // Solo permite comprar una vez
-      if (!this.player.canTripleJump) {
+      let cost = 5;
+      if (!this.player.canTripleJump && this.coins >= cost) {
         this.player.canTripleJump = true;
+        this.coins -= cost;
+        this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
         console.log('Comprado +Salto: Triple salto habilitado');
         saltoButton.setText('Triple Salto (Comprado)');
         saltoButton.disableInteractive();
       } else {
-        console.log('Triple salto ya comprado');
+        console.log('No tienes suficientes monedas o ya lo compraste');
       }
     });
   
     velocidadButton.on('pointerdown', () => {
-      if (!this.player.speedUp) {
+      let cost = 5;
+      if (!this.player.speedUp && this.coins >= cost) {
         this.player.speedUp = true;
+        this.coins -= cost;
+        this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
         console.log('Comprado +Velocidad: Velocidad duplicada');
         velocidadButton.setText('Velocidad x2 (Comprado)');
         velocidadButton.disableInteractive();
       } else {
-        console.log('Velocidad ya comprada');
+        console.log('No tienes suficientes monedas o ya lo compraste');
       }
     });
   
@@ -844,7 +872,7 @@ class MainGameScene extends Phaser.Scene {
       this.physics.resume();
       this.resetRoom();
     });
-  }  
+  }    
   // Cuando el jugador es impactado por un enemigo
   playerHit(player, enemy) {
     // Si el jugador ya es invulnerable, se ignora el golpe
