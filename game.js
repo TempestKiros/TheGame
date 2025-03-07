@@ -285,6 +285,31 @@ class MainGameScene extends Phaser.Scene {
       this.load.image('inventoryBg', 'assets/inventoryBackground.png');  // Fondo del inventario
   }
 
+  inventory() {
+    if (!this.inventoryContainer) {
+      this.inventoryContainer = this.add.container(400, 300); // Centro de la pantalla
+      let bg = this.add.image(0, 0, 'inventoryBg').setScale(0.5);
+      this.inventoryContainer.add(bg);
+  
+      this.inventoryItems = [];
+  
+      // Mostrar hasta 3 ítems en el inventario
+      for (let i = 0; i < 3; i++) {
+        let item = this.add.image(-50 + i * 50, 0, 'item' + (i + 1)).setVisible(false);
+        this.inventoryContainer.add(item);
+        this.inventoryItems.push(item);
+      }
+  
+      // Ocultar por defecto
+      this.inventoryContainer.setVisible(false);
+  
+      // Asignar el evento para la tecla "E"
+      this.input.keyboard.on('keydown-E', () => {
+        this.inventoryContainer.setVisible(!this.inventoryContainer.visible);
+      });
+    }
+  }
+
   create() {
   // Configurar el fondo y la gravedad
   this.add.image(400, 300, 'roomBackground');
@@ -304,6 +329,7 @@ class MainGameScene extends Phaser.Scene {
   this.player.canTripleJump = false;
   this.player.speedUp = false;
   this.player.invulnerable = false;
+  this.inventory();
   
   // Agregar el collider entre el jugador y las plataformas
   this.physics.add.collider(this.player, this.platforms);
@@ -505,13 +531,11 @@ class MainGameScene extends Phaser.Scene {
   spawnBoss() {
     console.log("¡Boss ha aparecido!");
   
-    // Crear al boss
     let boss = this.physics.add.sprite(400, 300, 'boss');
     boss.setCollideWorldBounds(true);
-    boss.health = 5;  // Vida del boss
-    boss.speed = 100;  // Velocidad de persecución
-  
-    // Guardamos el boss en la escena
+    boss.health = 5;
+    boss.maxHealth = 5;
+    boss.speed = 100;
     this.boss = boss;
   
     // Timer para lanzar bolas de fuego cada 5 segundos
@@ -522,43 +546,63 @@ class MainGameScene extends Phaser.Scene {
       },
       loop: true
     });
-  // Colisión entre el boss y el jugador
-this.physics.add.overlap(this.player, boss, (player, bossSprite) => {
-  // Evitar procesar daño si el jugador ya es invulnerable
-  if (player.invulnerable) return;
-
-  if (player.body.velocity.y > 0 && (player.y + player.height * 0.5) < bossSprite.y) {
-    bossSprite.health--;
-    player.setVelocityY(-200);
-    
-    // Si el boss es derrotado
-    if (bossSprite.health <= 0) {
-      bossSprite.destroy();
-      this.coins += 20;
-      this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
-      this.resetRoom();
-    }
-  } else {
-    this.playerHealth = Math.max(0, this.playerHealth - 1);
-    this.healthText.setText(`Vida: ${this.playerHealth}`);
-    
-    // Establecer invulnerabilidad por un breve periodo para evitar daño continuo
-    this.setPlayerInvulnerability(2000);
-    
-    if (this.playerHealth <= 0) {
-      submitScore(this.playerName, this.roomsCompleted, this.coins, this.playerHealth);
-      this.scene.start('GameOverScene');
-    }
-  }
-}, null, this);
-
-    // Si el boss sobrevive 3 minutos y 14 segundos, desaparece y reinicia la sala
-    this.time.delayedCall(194000, () => {
-      if (boss.active) {
-        boss.destroy();
-        this.resetRoom();
+  
+    // Crear la barra de salud del boss
+    this.bossHealthBar = this.add.graphics();
+    this.updateBossHealthBar();
+  
+    // Colisión entre el boss y el jugador
+    this.physics.add.overlap(this.player, boss, (player, bossSprite) => {
+      // Evitar daño si el jugador es invulnerable
+      if (player.invulnerable) return;
+  
+      // Golpe desde arriba: reduce la salud del boss
+      if (player.body.velocity.y > 0 && (player.y + player.height * 0.5) < bossSprite.y) {
+        bossSprite.health--;
+        player.setVelocityY(-200);
+        this.updateBossHealthBar();
+  
+        // Si el boss es derrotado
+        if (bossSprite.health <= 0) {
+          // Detener el timer de bolas de fuego
+          if (bossSprite.fireballTimer) bossSprite.fireballTimer.remove(false);
+          if (this.bossHealthBar) this.bossHealthBar.destroy();
+          bossSprite.destroy();
+          this.coins += 20;
+          this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
+          this.resetRoom();
+        }
+      } else {
+        // Daño al jugador
+        this.playerHealth = Math.max(0, this.playerHealth - 1);
+        this.healthText.setText(`Vida: ${this.playerHealth}`);
+        if (this.playerHealth <= 0) {
+          submitScore(this.playerName, this.roomsCompleted, this.coins, this.playerHealth);
+          this.scene.start('GameOverScene');
+        }
+        this.setPlayerInvulnerability(2000);
       }
-    });
+    }, null, this);
+  }
+  
+  updateBossHealthBar() {
+    if (!this.boss || !this.boss.active) {
+      if (this.bossHealthBar) this.bossHealthBar.clear();
+      return;
+    }
+    this.bossHealthBar.clear();
+    // Posicionar la barra de vida encima del boss
+    let x = this.boss.x - 50;
+    let y = this.boss.y - this.boss.height / 2 - 20;
+    let width = 100;
+    let height = 10;
+    // Fondo en rojo
+    this.bossHealthBar.fillStyle(0xff0000, 1);
+    this.bossHealthBar.fillRect(x, y, width, height);
+    // Barra verde según la salud restante
+    let healthPercentage = this.boss.health / this.boss.maxHealth;
+    this.bossHealthBar.fillStyle(0x00ff00, 1);
+    this.bossHealthBar.fillRect(x, y, width * healthPercentage, height);
   }
   
   spawnFireball(boss) {
@@ -706,32 +750,14 @@ this.physics.add.overlap(this.player, boss, (player, bossSprite) => {
         }
       });
     }
+
+     // Actualización de la barra de vida del boss (si está activo)
+     if (this.boss && this.boss.active) {
+      this.updateBossHealthBar();
+    }
   }  
   
-  inventory() {
-    if (!this.inventoryContainer) {
-        this.inventoryContainer = this.add.container(400, 300); // Centro de la pantalla
-        let bg = this.add.image(0, 0, 'inventoryBg').setScale(0.5);
-        this.inventoryContainer.add(bg);
-
-        this.inventoryItems = [];
-
-        // Mostrar hasta 3 ítems en el inventario
-        for (let i = 0; i < 3; i++) {
-            let item = this.add.image(-50 + i * 50, 0, 'item' + (i + 1)).setVisible(false);
-            this.inventoryContainer.add(item);
-            this.inventoryItems.push(item);
-        }
-
-        this.inventoryContainer.setVisible(false);
-    }
-
-    // Alternar visibilidad con la tecla "E"
-    this.input.keyboard.on('keydown-E', () => {
-        this.inventoryContainer.setVisible(!this.inventoryContainer.visible);
-    });
-  }
-    // Cuando el jugador recoja un ítem:
+  // Cuando el jugador recoja un ítem:
   addToInventory(itemKey) {
     for (let i = 0; i < this.inventoryItems.length; i++) {
         if (!this.inventoryItems[i].visible) {
