@@ -208,16 +208,20 @@ class MainGameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MainGameScene' });
     this.roomsCompleted = 0;
-    this.coins = 0;
-    this.playerHealth = 5; // Vida máxima 5
+    this.coins = 0; // Inicializa la variable de monedas
+    this.playerHealth = 5; 
+    this.bossesDefeated = 0;
   }
+
   init(data) {
     this.playerRace = data.race || 'human';
     this.playerName = data.playerName || "Jugador";
     this.roomsCompleted = data.roomsCompleted || 0;
-    this.coins = data.coins || 0;
+    this.totalCoins = data.totalCoins || 0;
     this.playerHealth = 5;
+    this.bossesDefeated = data.bossesDefeated || 0;
   }
+
   preload() {
     this.physics.world.createDebugGraphic();
     // Cargar assets según la selección del jugador:
@@ -227,7 +231,7 @@ class MainGameScene extends Phaser.Scene {
       this.load.spritesheet('coinAnim', 'assets/Human-Player/coin.png', { frameWidth: 16, frameHeight: 16 });
       this.load.spritesheet('enemy', 'assets/Human-Player/IdleEnemy.png', { frameWidth: 416 / 13, frameHeight: 34 });
       this.load.image('door', 'assets/Human-Player/Door-Human.png');
-      this.load.image('boss', 'assets/Human-Player/boss.png');
+      this.load.spritesheet('boss', 'assets/Human-Player/boss.png', { frameWidth: 440 / 10, frameHeight: 30 });
       this.load.image('shop', 'assets/Human-Player/shop.png');
 
       // Animaciones adicionales
@@ -244,7 +248,7 @@ class MainGameScene extends Phaser.Scene {
       this.load.spritesheet('coinAnim', 'assets/Quimera-Player/coin.png', { frameWidth: 16, frameHeight: 16 });
       this.load.spritesheet('enemy', 'assets/Quimera-Player/IdleEnemy.png', { frameWidth: 572 / 11, frameHeight: 34 });
       this.load.image('door', 'assets/Quimera-Player/Door-Quimera.png');
-      this.load.image('boss', 'assets/Quimera-Player/boss.png');
+      this.load.spritesheet('boss', 'assets/Quimera-Player/boss.png', { frameWidth: 440 / 10, frameHeight: 30 });
       this.load.image('shop', 'assets/Quimera-Player/shop.png');
 
       // Animaciones adicionales para Quimera
@@ -261,7 +265,7 @@ class MainGameScene extends Phaser.Scene {
       this.load.spritesheet('coinAnim', 'assets/Robot-Player/coin.png', { frameWidth: 16, frameHeight: 16 });
       this.load.spritesheet('enemy', 'assets/Robot-Player/IdleEnemy.png', { frameWidth: 440 / 10, frameHeight: 30 });
       this.load.image('door', 'assets/Robot-Player/Door-Robot.png');
-      this.load.image('boss', 'assets/Robot-Player/boss.png');
+      this.load.spritesheet('boss', 'assets/Robot-Player/boss.png', { frameWidth: 440 / 10, frameHeight: 30 });
       this.load.image('shop', 'assets/Robot-Player/shop.png');
 
       // Animaciones adicionales para Robot
@@ -274,6 +278,7 @@ class MainGameScene extends Phaser.Scene {
       this.load.spritesheet('mechanitaJumpHit', 'assets/Robot-Player/DoubleJumpRobot.png', { frameWidth: 32, frameHeight: 32 });
     }
   }
+
   create() {
     this.add.image(400, 300, 'roomBackground');
     this.physics.world.gravity.y = 600;
@@ -284,7 +289,14 @@ class MainGameScene extends Phaser.Scene {
     // Crear al jugador
     this.player = this.physics.add.sprite(100, 450, this.playerRace);
     this.player.setCollideWorldBounds(true);
-    this.physics.add.collider(this.player, this.platforms);
+    // Inicializa banderas para el doble y triple salto
+    this.player.doubleJumped = false;
+    this.player.tripleJumped = false;
+    this.player.canTripleJump = false; // Se activará al comprar la mejora de +Salto
+    // Inicializa la bandera de velocidad
+    this.player.speedUp = false; // Se activará al comprar la mejora de +Velocidad
+    // Inicializa invulnerabilidad si es necesario
+    this.player.invulnerable = false;
 
     // Animaciones del jugador
     if (!this.anims.exists('walk')) {
@@ -327,7 +339,6 @@ class MainGameScene extends Phaser.Scene {
         repeat: 0
       });
     }    
-    
     if (!this.anims.exists('coinSpin')) {
       let coinFrames = this.anims.generateFrameNumbers('coinAnim', { start: 0, end: 5 });
       this.anims.create({
@@ -337,6 +348,7 @@ class MainGameScene extends Phaser.Scene {
         repeat: -1
       });
     }
+
     this.coinsGroup = this.physics.add.group();
     this.spawnCoins();
     this.physics.add.collider(this.coinsGroup, this.platforms);
@@ -364,13 +376,18 @@ class MainGameScene extends Phaser.Scene {
     this.scoreText = this.add.text(16, 16, `Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`, { fontSize: '20px', fill: '#fff' });
     this.healthText = this.add.text(16, 40, `Vida: ${this.playerHealth}`, { fontSize: '20px', fill: '#fff' });
   }
+
   update() {
+    // Velocidad base y comprobación de mejora de velocidad
+    let baseSpeed = 160;
+    let speed = this.player.speedUp ? baseSpeed * 2 : baseSpeed;
+  
     if (this.cursors.left.isDown) {
-      this.player.setVelocityX(-160);
+      this.player.setVelocityX(-speed);
       this.player.anims.play('walk', true);
       this.player.flipX = true;
     } else if (this.cursors.right.isDown) {
-      this.player.setVelocityX(160);
+      this.player.setVelocityX(speed);
       this.player.anims.play('walk', true);
       this.player.flipX = false;
     } else {
@@ -378,22 +395,31 @@ class MainGameScene extends Phaser.Scene {
       this.player.anims.stop();
     }
   
+    // Lógica de salto con posibilidad de triple salto
     if (this.cursors.up.isDown && !this.jumpKeyPressed) {
       this.jumpKeyPressed = true;
       if (this.player.body.onFloor()) {
         this.player.setVelocityY(-330);
+        // Reinicia las banderas de doble y triple salto
         this.player.doubleJumped = false;
+        this.player.tripleJumped = false;
       } else if (this.player.body.blocked.left || this.player.body.blocked.right) {
         this.player.setVelocityY(-330);
+        // Opcionalmente, ajusta la dirección si salta desde una pared
         if (this.player.body.blocked.left) {
-          this.player.setVelocityX(160);
+          this.player.setVelocityX(speed);
         } else if (this.player.body.blocked.right) {
-          this.player.setVelocityX(-160);
+          this.player.setVelocityX(-speed);
         }
       } else if (!this.player.doubleJumped) {
         this.player.setVelocityY(-330);
         this.player.doubleJumped = true;
         this.player.anims.play('DoubleJump', true);
+      } else if (this.player.canTripleJump && !this.player.tripleJumped) {
+        // Si se ha comprado el triple salto y aún no se usó, se permite
+        this.player.setVelocityY(-330);
+        this.player.tripleJumped = true;
+        this.player.anims.play('DoubleJump', true); // O bien, usar una animación específica para triple salto
       }
     }
     if (this.cursors.up.isUp) {
@@ -496,19 +522,24 @@ class MainGameScene extends Phaser.Scene {
   
   completeRoom() {
     this.roomsCompleted++;
-    this.coins = 0;
-    this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
+  
+    // Lógica de eventos según la cantidad de salas completadas:
+    if (this.roomsCompleted % 10 === 0) {
+      // Cada 10 salas aparece un jefe
+      this.spawnBoss();
+    } else if (this.roomsCompleted % 7 === 0) {
+      // Cada 7 salas aparece una tienda
+      this.spawnShop();
+    } else {
+      // Si no se cumple lo anterior, reiniciamos la sala (monedas y puerta)
+      this.resetRoom();
+    }
+    
+    // Cada 2 salas se genera un enemigo adicional
     if (this.roomsCompleted % 2 === 0) {
       this.spawnEnemy();
     }
-    if (this.roomsCompleted % 10 === 0) {
-      this.spawnBoss();
-    } else if (this.roomsCompleted % 7 === 0) {
-      this.spawnShop();
-    } else {
-      this.resetRoom();
-    }
-  }
+  }  
   
   resetRoom() {
     this.spawnCoins();
@@ -560,22 +591,92 @@ class MainGameScene extends Phaser.Scene {
 
   spawnShop() {
     console.log("¡Tienda!");
-    // Pausar la física y mostrar n
+    // Pausar la física y mostrar overlay
     this.physics.pause();
     let shopOverlay = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7);
-    let shopText = this.add.text(400, 250, 'Bienvenido a la Tienda', { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
-    let instructions = this.add.text(400, 350, 'Presiona S para salir', { fontSize: '24px', fill: '#fff' }).setOrigin(0.5);
+    let shopTitle = this.add.text(400, 80, 'Bienvenido a la Tienda', { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
+    
+    // Botón para +Vida (se puede comprar varias veces)
+    let vidaButton = this.add.text(400, 150, 'Comprar +Vida', { fontSize: '24px', fill: '#fff', backgroundColor: '#008000', padding: { x: 10, y: 5 } })
+      .setOrigin(0.5)
+      .setInteractive();
+    
+    // Botón para +Salto (solo una vez)
+    let saltoButton = this.add.text(400, 220, 'Comprar +Salto', { fontSize: '24px', fill: '#fff', backgroundColor: '#000080', padding: { x: 10, y: 5 } })
+      .setOrigin(0.5)
+      .setInteractive();
+    
+    // Botón para +Velocidad (solo una vez)
+    let velocidadButton = this.add.text(400, 290, 'Comprar +Velocidad', { fontSize: '24px', fill: '#fff', backgroundColor: '#800000', padding: { x: 10, y: 5 } })
+      .setOrigin(0.5)
+      .setInteractive();
+    
+    // Botón para salir de la tienda
+    let exitButton = this.add.text(400, 400, 'Salir de la Tienda (S)', { fontSize: '24px', fill: '#fff', backgroundColor: '#555555', padding: { x: 10, y: 5 } })
+      .setOrigin(0.5)
+      .setInteractive();
+  
+    // Eventos para cada opción:
+    vidaButton.on('pointerdown', () => {
+      // Agrega o cura 1 vida
+      this.playerHealth++;
+      this.healthText.setText(`Vida: ${this.playerHealth}`);
+      console.log('Comprado +Vida');
+    });
+  
+    saltoButton.on('pointerdown', () => {
+      // Solo permite comprar una vez
+      if (!this.player.canTripleJump) {
+        this.player.canTripleJump = true;
+        console.log('Comprado +Salto: Triple salto habilitado');
+        saltoButton.setText('Triple Salto (Comprado)');
+        saltoButton.disableInteractive();
+      } else {
+        console.log('Triple salto ya comprado');
+      }
+    });
+  
+    velocidadButton.on('pointerdown', () => {
+      if (!this.player.speedUp) {
+        this.player.speedUp = true;
+        console.log('Comprado +Velocidad: Velocidad duplicada');
+        velocidadButton.setText('Velocidad x2 (Comprado)');
+        velocidadButton.disableInteractive();
+      } else {
+        console.log('Velocidad ya comprada');
+      }
+    });
+  
+    // Salir de la tienda: se destruyen los elementos y se reanuda la física
+    exitButton.on('pointerdown', () => {
+      shopOverlay.destroy();
+      shopTitle.destroy();
+      vidaButton.destroy();
+      saltoButton.destroy();
+      velocidadButton.destroy();
+      exitButton.destroy();
+      this.physics.resume();
+      this.resetRoom();
+    });
+  
+    // También se puede salir presionando la tecla S
     this.input.keyboard.once('keydown-S', () => {
       shopOverlay.destroy();
-      shopText.destroy();
-      instructions.destroy();
+      shopTitle.destroy();
+      vidaButton.destroy();
+      saltoButton.destroy();
+      velocidadButton.destroy();
+      exitButton.destroy();
       this.physics.resume();
       this.resetRoom();
     });
   }
-
+  
   // Cuando el jugador es impactado por un enemigo
   playerHit(player, enemy) {
+    // Si el jugador ya es invulnerable, se ignora el golpe
+    if (player.invulnerable) return;
+    
     if (player.body.velocity.y > 0 && (player.y + player.height * 0.5) < enemy.y) {
       enemy.destroy();
       player.setVelocityY(-200);
@@ -593,8 +694,29 @@ class MainGameScene extends Phaser.Scene {
         this.scene.start('GameOverScene');
       }
       enemy.setVelocityX(enemy.flipX ? 50 : -50);
+      // Activa la invulnerabilidad por 2 segundos
+      this.setPlayerInvulnerability(2000);
     }
   }
+  
+  setPlayerInvulnerability(duration) {
+    this.player.invulnerable = true;
+    // Usa un tween para lograr el efecto de parpadeo
+    this.tweens.add({
+      targets: this.player,
+      alpha: 0,
+      ease: 'Linear',
+      duration: 100,
+      yoyo: true,
+      repeat: duration / 200,  // Se repite hasta completar el tiempo de invulnerabilidad
+      onComplete: () => {
+        this.player.alpha = 1;
+        this.player.invulnerable = false;
+      }
+    });
+  }
+  
+
 }
 
 // ======================
@@ -643,50 +765,42 @@ class GameOverScene extends Phaser.Scene {
 }
 
 // ======================
-// Leaderboard Scene Mejorado
+// LeaderboardScene Corregido
 // ======================
 class LeaderboardScene extends Phaser.Scene {
   constructor() {
-      super({ key: 'LeaderboardScene' });
+    super({ key: 'LeaderboardScene' });
   }
 
   create() {
-      const { width, height } = this.cameras.main;
-      this.cameras.main.setBackgroundColor('#000');
+    const { width, height } = this.cameras.main;
+    this.cameras.main.setBackgroundColor('#000');
 
-      this.add.text(width / 2, 50, 'SCORE RANKING', {
-          fontSize: '24px',
-          fontFamily: 'Press Start 2P',
-          color: '#FFA500'
-      }).setOrigin(0.5);
+    this.add.text(width / 2, 50, 'SCORE RANKING', {
+      fontSize: '24px',
+      fontFamily: 'Press Start 2P',
+      color: '#FFA500'
+    }).setOrigin(0.5);
 
-      fetch('http://localhost:3000/api/leaderboard')
-          .then(res => res.json())
-          .then(data => {
-              data.forEach((entry, index) => {
-                  let score = (entry.coins * entry.rooms) + (entry.bosses || 0);
-                  this.add.text(width / 4, 100 + index * 30, `${index + 1}º`, {
-                      fontSize: '20px', color: '#FFFFFF', fontFamily: 'Press Start 2P'
-                  }).setOrigin(0.5);
-                  this.add.text(width / 2, 100 + index * 30, score, {
-                      fontSize: '20px', color: '#FFFF00', fontFamily: 'Press Start 2P'
-                  }).setOrigin(0.5);
-                  this.add.text((width / 4) * 3, 100 + index * 30, entry.name, {
-                      fontSize: '20px', color: '#00FFFF', fontFamily: 'Press Start 2P'
-                  }).setOrigin(0.5);
-              });
-          });
-
-      let backButton = this.add.text(width / 2, height - 50, 'BACK', {
-          fontSize: '20px', fontFamily: 'Press Start 2P', color: '#FFFFFF', backgroundColor: '#FF0000',
-          padding: { left: 10, right: 10, top: 5, bottom: 5 }
-      }).setOrigin(0.5).setInteractive();
-
-      backButton.on('pointerdown', () => {
-          this.scene.start('GameOverScene');
+    fetch('http://localhost:3000/api/leaderboard')
+      .then(res => res.json())
+      .then(data => {
+        data.forEach((entry, index) => {
+          let score = (entry.coins * entry.rooms) + (entry.bosses || 0);
+          this.add.text(width / 4, 100 + index * 30, `${index + 1}º`, {
+            fontSize: '20px', color: '#FFFFFF', fontFamily: 'Press Start 2P'
+          }).setOrigin(0.5);
+          this.add.text(width / 2, 100 + index * 30, score, {
+            fontSize: '20px', color: '#FFFF00', fontFamily: 'Press Start 2P'
+          }).setOrigin(0.5);
+          this.add.text((width / 4) * 3, 100 + index * 30, entry.name, {
+            fontSize: '20px', color: '#00FFFF', fontFamily: 'Press Start 2P'
+          }).setOrigin(0.5);
+        });
       });
   }
 }
+
 // ======================
 // Configuración de Phaser
 // ======================
@@ -714,18 +828,20 @@ const config = {
 
 const game = new Phaser.Game(config);
 console.log(`Monedas al final: ${this.coins}`);
-/* Funciones para la comunicación con el servidor */
-function submitScore(playerName, rooms, coins, lives) {
+
+// ======================
+// Enviar datos al servidor
+// ======================
+function submitScore(playerName, rooms, coins, bosses) {
+  console.log(`Enviando: Name=${playerName}, Rooms=${rooms}, Coins=${coins}, Bosses=${bosses}`);
+  let score = (coins * rooms) + bosses;
   fetch('http://localhost:3000/api/submitScore', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: playerName, lives: lives, rooms: rooms, coins: coins })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: playerName, rooms, coins, bosses, score })
   })
   .then(res => res.json())
-  .then(data => {
-    console.log("Puntaje enviado:", data);
-    getLeaderboard();
-  })
+  .then(data => console.log("Puntaje enviado:", data))
   .catch(err => console.error(err));
 }
 
