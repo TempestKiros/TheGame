@@ -207,9 +207,9 @@ class CharacterSelectScene extends Phaser.Scene {
 class MainGameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MainGameScene' });
-    this.roomsCompleted = 9;
+    this.roomsCompleted = 0;
     this.coins = 30; // Inicializa la variable de monedas
-    this.playerHealth = 32; 
+    this.playerHealth = 5; 
     this.bossesDefeated = 0;
     this.doorCost = 5;
   }
@@ -217,12 +217,14 @@ class MainGameScene extends Phaser.Scene {
   init(data) {
     this.playerRace = data.race || 'human';
     this.playerName = data.playerName || "Jugador";
-    this.roomsCompleted = data.roomsCompleted || 0;
-    this.totalCoins = data.totalCoins || 0;
-    this.playerHealth = 5;
-    this.bossesDefeated = data.bossesDefeated || 0;
-  }
-
+    // Forzamos valores de prueba
+    this.roomsCompleted = 9;
+    this.totalCoins = 0;
+    this.playerHealth = 3;
+    this.bossesDefeated = 0;
+    this.itemsCollected = 0; 
+  }  
+  
   preload() {
     this.physics.world.createDebugGraphic();
     // Cargar assets según la selección del jugador:
@@ -285,7 +287,6 @@ class MainGameScene extends Phaser.Scene {
       this.load.image('item3', 'assets/huevopascua3.png');
       this.load.image('inventoryBg', 'assets/inventoryBackground.png');  // Fondo del inventario
   }
-
   // Método de inventario
   inventory() {
     if (!this.inventoryContainer) {
@@ -655,23 +656,23 @@ class MainGameScene extends Phaser.Scene {
   dropItem(x, y) {
     let dropChance = Math.random();
     if (dropChance <= 0.9) { // 90% de probabilidad de soltar un objeto
-      let items = ['huevopascua1', 'huevopascua2', 'huevopascua3'];
+      let items = ['item1', 'item2', 'item3'];
       let randomItem = items[Math.floor(Math.random() * items.length)];
       let droppedItem = this.physics.add.sprite(x, y, randomItem);
-  
-      // Desactivar la gravedad para que el objeto no caiga
+      // Evitar que el objeto caiga indefinidamente
       droppedItem.body.allowGravity = false;
-  
+      // Guardar la clave del ítem para usarla al recogerlo
+      droppedItem.myKey = randomItem;
+      
       this.physics.add.overlap(this.player, droppedItem, (player, item) => {
-        console.log("Item recogido:", item.texture.key);
-        this.addToInventory(item.texture.key);
+        console.log("Item recogido:", item.myKey);
+        this.addToInventory(item.myKey);
         item.destroy();
       });
     }
   }
   
-  
-  
+    
   update() {
     // --- Lógica del jugador y enemigos ---
     let baseSpeed = 160;
@@ -775,6 +776,7 @@ class MainGameScene extends Phaser.Scene {
     for (let i = 0; i < this.inventoryItems.length; i++) {
       if (!this.inventoryItems[i].visible) {
         this.inventoryItems[i].setTexture(itemKey).setVisible(true);
+        this.itemsCollected++;
         break;
       }
     }
@@ -891,7 +893,8 @@ class MainGameScene extends Phaser.Scene {
       this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
       this.healthText.setText(`Vida: ${this.playerHealth}`);
       if (this.playerHealth <= 0) {
-        submitScore(this.playerName, this.roomsCompleted, this.coins, this.playerHealth);
+        // CAMBIO: Se añade itemsCollected al guardar los datos
+        submitScore(this.playerName, this.roomsCompleted, this.coins, this.playerHealth, this.itemsCollected);
         this.scene.start('GameOverScene');
       }
       enemy.setVelocityX(enemy.flipX ? 50 : -50);
@@ -899,6 +902,7 @@ class MainGameScene extends Phaser.Scene {
       this.setPlayerInvulnerability(2000);
     }
   }
+  
   
   setPlayerInvulnerability(duration) {
     this.player.invulnerable = true;
