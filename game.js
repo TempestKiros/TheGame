@@ -960,11 +960,11 @@ class MenuScene extends Phaser.Scene {
     let selectionButton = this.add.text(200, 250, 'Selección de Personaje', { font: '32px Arial', fill: '#fff' })
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => {
-        // Cierra el menú y cambia a la escena de selección de personaje
-        this.scene.stop();                                // Detiene el menú
-        this.scene.stop('MainGameScene');                 // Detiene la escena del juego
-        this.scene.start('CharacterSelectScene');      // Inicia la escena de selección
+        this.scene.stop();                            // Detiene el menú
+        this.scene.stop('MainGameScene');             // Detiene la escena del juego
+        this.scene.start('CharacterSelectScene');     // Inicia la selección
       });
+  
 
     // Botón para ir al Leaderboard
     let leaderboardButton = this.add.text(200, 350, 'Leaderboard', { font: '32px Arial', fill: '#fff' })
