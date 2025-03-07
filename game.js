@@ -285,30 +285,32 @@ class MainGameScene extends Phaser.Scene {
       this.load.image('inventoryBg', 'assets/inventoryBackground.png');  // Fondo del inventario
   }
 
+  // Método de inventario
   inventory() {
     if (!this.inventoryContainer) {
       this.inventoryContainer = this.add.container(400, 300); // Centro de la pantalla
       let bg = this.add.image(0, 0, 'inventoryBg').setScale(0.5);
       this.inventoryContainer.add(bg);
-  
+
       this.inventoryItems = [];
-  
+
       // Mostrar hasta 3 ítems en el inventario
       for (let i = 0; i < 3; i++) {
         let item = this.add.image(-50 + i * 50, 0, 'item' + (i + 1)).setVisible(false);
         this.inventoryContainer.add(item);
         this.inventoryItems.push(item);
       }
-  
+
       // Ocultar por defecto
       this.inventoryContainer.setVisible(false);
-  
+
       // Asignar el evento para la tecla "E"
       this.input.keyboard.on('keydown-E', () => {
+        console.log("Se presionó E");  // Debug
         this.inventoryContainer.setVisible(!this.inventoryContainer.visible);
-      });
-    }
+    });
   }
+}
 
   create() {
   // Configurar el fondo y la gravedad
@@ -528,70 +530,64 @@ class MainGameScene extends Phaser.Scene {
     enemy.setVelocityX(-50);
   }
 
+  // Método para crear el boss y la barra de salud
   spawnBoss() {
-    console.log("¡Boss ha aparecido!");
-  
-    let boss = this.physics.add.sprite(400, 300, 'boss');
-    boss.setCollideWorldBounds(true);
-    boss.health = 5;
-    boss.maxHealth = 5;
-    boss.speed = 100;
-    this.boss = boss;
-  
-    // Timer para lanzar bolas de fuego cada 5 segundos
-    boss.fireballTimer = this.time.addEvent({
-      delay: 5000,
-      callback: () => {
-        this.spawnFireball(boss);
-      },
-      loop: true
-    });
-  
-    // Crear la barra de salud del boss
-    this.bossHealthBar = this.add.graphics();
-    this.updateBossHealthBar();
-  
-    // Colisión entre el boss y el jugador
-    this.physics.add.overlap(this.player, boss, (player, bossSprite) => {
-      // Evitar daño si el jugador es invulnerable
-      if (player.invulnerable) return;
-  
-      // Golpe desde arriba: reduce la salud del boss
-      if (player.body.velocity.y > 0 && (player.y + player.height * 0.5) < bossSprite.y) {
-        bossSprite.health--;
-        player.setVelocityY(-200);
-        this.updateBossHealthBar();
-  
-        // Si el boss es derrotado
-        if (bossSprite.health <= 0) {
-          // Detener el timer de bolas de fuego
-          if (bossSprite.fireballTimer) bossSprite.fireballTimer.remove(false);
-          if (this.bossHealthBar) this.bossHealthBar.destroy();
-          bossSprite.destroy();
-          this.coins += 20;
-          this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
-          this.resetRoom();
-        }
-      } else {
-        // Daño al jugador
-        this.playerHealth = Math.max(0, this.playerHealth - 1);
-        this.healthText.setText(`Vida: ${this.playerHealth}`);
-        if (this.playerHealth <= 0) {
-          submitScore(this.playerName, this.roomsCompleted, this.coins, this.playerHealth);
-          this.scene.start('GameOverScene');
-        }
-        this.setPlayerInvulnerability(2000);
+  console.log("¡Boss ha aparecido!");
+  let boss = this.physics.add.sprite(400, 300, 'boss');
+  boss.setCollideWorldBounds(true);
+  boss.health = 5;
+  boss.maxHealth = 5;
+  boss.speed = 100;
+  this.boss = boss;
+
+  // Timer para lanzar bolas de fuego cada 5 segundos
+  boss.fireballTimer = this.time.addEvent({
+    delay: 5000,
+    callback: () => {
+      this.spawnFireball(boss);
+    },
+    loop: true
+  });
+
+  // Crear la barra de salud del boss con un depth alto
+  this.bossHealthBar = this.add.graphics();
+  this.bossHealthBar.setDepth(1000);
+  this.updateBossHealthBar();
+
+  // Colisión entre el boss y el jugador
+  this.physics.add.overlap(this.player, boss, (player, bossSprite) => {
+    if (player.invulnerable) return;
+    if (player.body.velocity.y > 0 && (player.y + player.height * 0.5) < bossSprite.y) {
+      bossSprite.health--;
+      player.setVelocityY(-200);
+      this.updateBossHealthBar();
+      if (bossSprite.health <= 0) {
+        // Detener el timer de bolas de fuego
+        if (bossSprite.fireballTimer) bossSprite.fireballTimer.remove(false);
+        if (this.bossHealthBar) this.bossHealthBar.destroy();
+        bossSprite.destroy();
+        this.coins += 20;
+        this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
+        this.resetRoom();
       }
-    }, null, this);
+    } else {
+      this.playerHealth = Math.max(0, this.playerHealth - 1);
+      this.healthText.setText(`Vida: ${this.playerHealth}`);
+      if (this.playerHealth <= 0) {
+        submitScore(this.playerName, this.roomsCompleted, this.coins, this.playerHealth);
+        this.scene.start('GameOverScene');
+      }
+      this.setPlayerInvulnerability(2000);
+    }
+  }, null, this);
   }
-  
+
   updateBossHealthBar() {
     if (!this.boss || !this.boss.active) {
       if (this.bossHealthBar) this.bossHealthBar.clear();
       return;
     }
     this.bossHealthBar.clear();
-    // Posicionar la barra de vida encima del boss
     let x = this.boss.x - 50;
     let y = this.boss.y - this.boss.height / 2 - 20;
     let width = 100;
@@ -603,7 +599,7 @@ class MainGameScene extends Phaser.Scene {
     let healthPercentage = this.boss.health / this.boss.maxHealth;
     this.bossHealthBar.fillStyle(0x00ff00, 1);
     this.bossHealthBar.fillRect(x, y, width * healthPercentage, height);
-  }
+  }  
   
   spawnFireball(boss) {
     // Crear la bola de fuego
