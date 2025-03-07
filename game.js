@@ -387,78 +387,6 @@ class MainGameScene extends Phaser.Scene {
     this.healthText = this.add.text(16, 40, `Vida: ${this.playerHealth}`, { fontSize: '20px', fill: '#fff' });
   }
 
-  update() {
-    // Velocidad base y comprobación de mejora de velocidad
-    let baseSpeed = 160;
-    let speed = this.player.speedUp ? baseSpeed * 2 : baseSpeed;
-  
-    if (this.cursors.left.isDown) {
-      this.player.setVelocityX(-speed);
-      this.player.anims.play('walk', true);
-      this.player.flipX = true;
-    } else if (this.cursors.right.isDown) {
-      this.player.setVelocityX(speed);
-      this.player.anims.play('walk', true);
-      this.player.flipX = false;
-    } else {
-      this.player.setVelocityX(0);
-      this.player.anims.stop();
-    }
-  
-    // Lógica de salto con posibilidad de triple salto
-    if (this.cursors.up.isDown && !this.jumpKeyPressed) {
-      this.jumpKeyPressed = true;
-      if (this.player.body.onFloor()) {
-        this.player.setVelocityY(-330);
-        // Reinicia las banderas de doble y triple salto
-        this.player.doubleJumped = false;
-        this.player.tripleJumped = false;
-      } else if (this.player.body.blocked.left || this.player.body.blocked.right) {
-        this.player.setVelocityY(-330);
-        // Opcionalmente, ajusta la dirección si salta desde una pared
-        if (this.player.body.blocked.left) {
-          this.player.setVelocityX(speed);
-        } else if (this.player.body.blocked.right) {
-          this.player.setVelocityX(-speed);
-        }
-      } else if (!this.player.doubleJumped) {
-        this.player.setVelocityY(-330);
-        this.player.doubleJumped = true;
-        this.player.anims.play('DoubleJump', true);
-      } else if (this.player.canTripleJump && !this.player.tripleJumped) {
-        // Si se ha comprado el triple salto y aún no se usó, se permite
-        this.player.setVelocityY(-330);
-        this.player.tripleJumped = true;
-        this.player.anims.play('DoubleJump', true); // O bien, usar una animación específica para triple salto
-      }
-    }
-    if (this.cursors.up.isUp) {
-      this.jumpKeyPressed = false;
-    }
-    if (!this.player.body.onFloor() && this.player.body.velocity.y > 0) {
-      if (this.anims.exists('fall')) {
-        this.player.anims.play('fall', true);
-      }
-    }
-    
-    // Lógica de enemigos para seguir al jugador
-    this.enemies.getChildren().forEach(enemy => {
-      let distanceX = this.player.x - enemy.x;
-      if (distanceX < -10) {
-        enemy.setVelocityX(-50);
-        enemy.flipX = true;
-      } else if (distanceX > 10) {
-        enemy.setVelocityX(50);
-        enemy.flipX = false;
-      } else {
-        enemy.setVelocityX(0);
-      }
-      if (this.player.y < enemy.y - 10 && (enemy.body.blocked.left || enemy.body.blocked.right)) {
-        enemy.setVelocityY(-200);
-      }
-    });
-  }  
-
   spawnPlatforms() {
 
     this.platforms.clear(true, true);
@@ -594,30 +522,36 @@ class MainGameScene extends Phaser.Scene {
       },
       loop: true
     });
-  
-    // Colisión entre el boss y el jugador
-    this.physics.add.overlap(this.player, boss, (player, bossSprite) => {
-      if (player.body.velocity.y > 0 && (player.y + player.height * 0.5) < bossSprite.y) {
-        bossSprite.health--;
-        player.setVelocityY(-200);
-        
-        // Si el boss es derrotado
-        if (bossSprite.health <= 0) {
-          bossSprite.destroy();
-          this.coins += 20;
-          this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
-          this.resetRoom();
-        }
-      } else {
-        this.playerHealth = Math.max(0, this.playerHealth - 1);
-        this.healthText.setText(`Vida: ${this.playerHealth}`);
-        if (this.playerHealth <= 0) {
-          submitScore(this.playerName, this.roomsCompleted, this.coins, this.playerHealth);
-          this.scene.start('GameOverScene');
-        }
-      }
-    }, null, this);
-  
+  // Colisión entre el boss y el jugador
+this.physics.add.overlap(this.player, boss, (player, bossSprite) => {
+  // Evitar procesar daño si el jugador ya es invulnerable
+  if (player.invulnerable) return;
+
+  if (player.body.velocity.y > 0 && (player.y + player.height * 0.5) < bossSprite.y) {
+    bossSprite.health--;
+    player.setVelocityY(-200);
+    
+    // Si el boss es derrotado
+    if (bossSprite.health <= 0) {
+      bossSprite.destroy();
+      this.coins += 20;
+      this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
+      this.resetRoom();
+    }
+  } else {
+    this.playerHealth = Math.max(0, this.playerHealth - 1);
+    this.healthText.setText(`Vida: ${this.playerHealth}`);
+    
+    // Establecer invulnerabilidad por un breve periodo para evitar daño continuo
+    this.setPlayerInvulnerability(2000);
+    
+    if (this.playerHealth <= 0) {
+      submitScore(this.playerName, this.roomsCompleted, this.coins, this.playerHealth);
+      this.scene.start('GameOverScene');
+    }
+  }
+}, null, this);
+
     // Si el boss sobrevive 3 minutos y 14 segundos, desaparece y reinicia la sala
     this.time.delayedCall(194000, () => {
       if (boss.active) {
@@ -632,6 +566,10 @@ class MainGameScene extends Phaser.Scene {
     let fireball = this.physics.add.sprite(boss.x, boss.y, 'fireball');
     fireball.speed = 150;  // Velocidad de la bola de fuego
     fireball.target = this.player;  // Asignamos el objetivo
+
+    // Ajusta la hitbox (modifica los valores según lo que necesites)
+    fireball.body.setSize(28, 30); // ancho, alto deseados
+    fireball.body.setOffset(20, 10); // desplazamiento en x, y si es necesario
   
     // Guardamos el fireball en un grupo
     if (!this.fireballs) {
@@ -654,14 +592,13 @@ class MainGameScene extends Phaser.Scene {
     this.physics.add.collider(fireball, this.platforms, (fb) => fb.destroy());
     this.physics.add.collider(fireball, this.enemies, (fb) => fb.destroy());
   
-    // Destruir la bola de fuego después de 7 segundos
-    this.time.delayedCall(7000, () => {
+    // Destruir la bola de fuego después de 6 segundos
+    this.time.delayedCall(6000, () => {
       if (fireball.active) {
         fireball.destroy();
       }
     });
   }
-
   // Drop aleatorio de objetos al derrotar al boss
   dropItem(x, y) {
       let dropChance = Math.random();
@@ -676,10 +613,78 @@ class MainGameScene extends Phaser.Scene {
           // Aquí puedes agregar lógica para el inventario
     });
   }
-}
+  }
   
   update() {
-    // Movimiento del boss hacia el jugador
+    // --- Lógica del jugador y enemigos ---
+    let baseSpeed = 160;
+    let speed = this.player.speedUp ? baseSpeed * 2 : baseSpeed;
+  
+    if (this.cursors.left.isDown) {
+      this.player.setVelocityX(-speed);
+      this.player.anims.play('walk', true);
+      this.player.flipX = true;
+    } else if (this.cursors.right.isDown) {
+      this.player.setVelocityX(speed);
+      this.player.anims.play('walk', true);
+      this.player.flipX = false;
+    } else {
+      this.player.setVelocityX(0);
+      this.player.anims.stop();
+    }
+  
+    // Lógica de salto con posibilidad de triple salto
+    if (this.cursors.up.isDown && !this.jumpKeyPressed) {
+      this.jumpKeyPressed = true;
+      if (this.player.body.onFloor()) {
+        this.player.setVelocityY(-330);
+        // Reinicia las banderas de doble y triple salto
+        this.player.doubleJumped = false;
+        this.player.tripleJumped = false;
+      } else if (this.player.body.blocked.left || this.player.body.blocked.right) {
+        this.player.setVelocityY(-330);
+        if (this.player.body.blocked.left) {
+          this.player.setVelocityX(speed);
+        } else if (this.player.body.blocked.right) {
+          this.player.setVelocityX(-speed);
+        }
+      } else if (!this.player.doubleJumped) {
+        this.player.setVelocityY(-330);
+        this.player.doubleJumped = true;
+        this.player.anims.play('DoubleJump', true);
+      } else if (this.player.canTripleJump && !this.player.tripleJumped) {
+        this.player.setVelocityY(-330);
+        this.player.tripleJumped = true;
+        this.player.anims.play('DoubleJump', true);
+      }
+    }
+    if (this.cursors.up.isUp) {
+      this.jumpKeyPressed = false;
+    }
+    if (!this.player.body.onFloor() && this.player.body.velocity.y > 0) {
+      if (this.anims.exists('fall')) {
+        this.player.anims.play('fall', true);
+      }
+    }
+  
+    // Actualización de enemigos para seguir al jugador
+    this.enemies.getChildren().forEach(enemy => {
+      let distanceX = this.player.x - enemy.x;
+      if (distanceX < -10) {
+        enemy.setVelocityX(-50);
+        enemy.flipX = true;
+      } else if (distanceX > 10) {
+        enemy.setVelocityX(50);
+        enemy.flipX = false;
+      } else {
+        enemy.setVelocityX(0);
+      }
+      if (this.player.y < enemy.y - 10 && (enemy.body.blocked.left || enemy.body.blocked.right)) {
+        enemy.setVelocityY(-200);
+      }
+    });
+  
+    // --- Lógica del boss y proyectiles ---
     if (this.boss && this.boss.active) {
       let dx = this.player.x - this.boss.x;
       let dy = this.player.y - this.boss.y;
@@ -689,7 +694,6 @@ class MainGameScene extends Phaser.Scene {
       }
     }
   
-    // Movimiento de los proyectiles hacia el jugador
     if (this.fireballs) {
       this.fireballs.children.iterate((fireball) => {
         if (fireball.active && fireball.target) {
@@ -702,7 +706,7 @@ class MainGameScene extends Phaser.Scene {
         }
       });
     }
-  }
+  }  
   
   inventory() {
     if (!this.inventoryContainer) {
@@ -726,7 +730,7 @@ class MainGameScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-E', () => {
         this.inventoryContainer.setVisible(!this.inventoryContainer.visible);
     });
-}
+  }
     // Cuando el jugador recoja un ítem:
   addToInventory(itemKey) {
     for (let i = 0; i < this.inventoryItems.length; i++) {
@@ -735,8 +739,7 @@ class MainGameScene extends Phaser.Scene {
             break;
         }
     }
-}
-
+  }  
   
   spawnShop() {
     console.log("¡Tienda!");
@@ -819,8 +822,7 @@ class MainGameScene extends Phaser.Scene {
       this.physics.resume();
       this.resetRoom();
     });
-  }
-  
+  }  
   // Cuando el jugador es impactado por un enemigo
   playerHit(player, enemy) {
     // Si el jugador ya es invulnerable, se ignora el golpe
@@ -863,9 +865,7 @@ class MainGameScene extends Phaser.Scene {
         this.player.invulnerable = false;
       }
     });
-  }
-  
-
+  }  
 }
 
 // ======================
