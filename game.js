@@ -277,26 +277,36 @@ class MainGameScene extends Phaser.Scene {
       this.load.spritesheet('mechanitaHit', 'assets/Robot-Player/HitRobot.png', { frameWidth: 32, frameHeight: 32 });
       this.load.spritesheet('mechanitaJumpHit', 'assets/Robot-Player/DoubleJumpRobot.png', { frameWidth: 32, frameHeight: 32 });
     }
+      // Cargar las imágenes
+      this.load.image('fireball', 'assets/fireball.gif');
+      this.load.image('item1', 'assets/huevopascua1.png');
+      this.load.image('item2', 'assets/huevopascua2.png');
+      this.load.image('item3', 'assets/huevopascua3.png');
+      this.load.image('inventoryBg', 'assets/inventoryBackground.png');  // Fondo del inventario
   }
 
   create() {
-    this.add.image(400, 300, 'roomBackground');
-    this.physics.world.gravity.y = 600;
-    this.physics.world.setBounds(0, 0, 800, 600);
-    this.platforms = this.physics.add.staticGroup();
-    this.spawnPlatforms();
+  // Configurar el fondo y la gravedad
+  this.add.image(400, 300, 'roomBackground');
+  this.physics.world.gravity.y = 600;
+  this.physics.world.setBounds(0, 0, 800, 600);
 
-    // Crear al jugador
-    this.player = this.physics.add.sprite(100, 450, this.playerRace);
-    this.player.setCollideWorldBounds(true);
-    // Inicializa banderas para el doble y triple salto
-    this.player.doubleJumped = false;
-    this.player.tripleJumped = false;
-    this.player.canTripleJump = false; // Se activará al comprar la mejora de +Salto
-    // Inicializa la bandera de velocidad
-    this.player.speedUp = false; // Se activará al comprar la mejora de +Velocidad
-    // Inicializa invulnerabilidad si es necesario
-    this.player.invulnerable = false;
+  // Crear el grupo de plataformas y generarlas
+  this.platforms = this.physics.add.staticGroup();
+  this.spawnPlatforms();
+
+  // Crear al jugador
+  this.player = this.physics.add.sprite(100, 450, this.playerRace);
+  this.player.setCollideWorldBounds(true);
+  // Inicializar banderas y propiedades del jugador
+  this.player.doubleJumped = false;
+  this.player.tripleJumped = false;
+  this.player.canTripleJump = false;
+  this.player.speedUp = false;
+  this.player.invulnerable = false;
+  
+  // Agregar el collider entre el jugador y las plataformas
+  this.physics.add.collider(this.player, this.platforms);
 
     // Animaciones del jugador
     if (!this.anims.exists('walk')) {
@@ -450,13 +460,14 @@ class MainGameScene extends Phaser.Scene {
   }  
 
   spawnPlatforms() {
+
+    this.platforms.clear(true, true);
     let platformPositions = [
       { x: 400, y: 580, scale: 2 },
       { x: 150, y: 450 },
       { x: 400, y: 350 },
       { x: 650, y: 250 }
     ];
-    this.platforms.clear(true, true);
     platformPositions.forEach(pos => {
       let plat = this.platforms.create(pos.x, pos.y, 'platform');
       if (pos.scale) {
@@ -547,6 +558,13 @@ class MainGameScene extends Phaser.Scene {
       this.door.destroy();
     }
     this.spawnDoor();
+    // Vuelve a crear el collider entre el jugador y las plataformas
+    this.physics.add.collider(this.player, this.platforms);
+    if (this.platformCollider) {
+      this.platformCollider.destroy();
+    }
+    this.platformCollider = this.physics.add.collider(this.player, this.platforms);
+    
   }
 
   spawnEnemy() {
@@ -557,18 +575,37 @@ class MainGameScene extends Phaser.Scene {
   }
 
   spawnBoss() {
-    console.log("¡Boss!");
-    // Crear un boss interactivo
+    console.log("¡Boss ha aparecido!");
+  
+    // Crear al boss
     let boss = this.physics.add.sprite(400, 300, 'boss');
     boss.setCollideWorldBounds(true);
-    boss.health = 3; // Ejemplo: 3 golpes para derrotarlo
-    // Overlap entre jugador y boss
+    boss.health = 5;  // Vida del boss
+    boss.speed = 100;  // Velocidad de persecución
+  
+    // Guardamos el boss en la escena
+    this.boss = boss;
+  
+    // Timer para lanzar bolas de fuego cada 5 segundos
+    boss.fireballTimer = this.time.addEvent({
+      delay: 5000,
+      callback: () => {
+        this.spawnFireball(boss);
+      },
+      loop: true
+    });
+  
+    // Colisión entre el boss y el jugador
     this.physics.add.overlap(this.player, boss, (player, bossSprite) => {
       if (player.body.velocity.y > 0 && (player.y + player.height * 0.5) < bossSprite.y) {
         bossSprite.health--;
         player.setVelocityY(-200);
+        
+        // Si el boss es derrotado
         if (bossSprite.health <= 0) {
           bossSprite.destroy();
+          this.coins += 20;
+          this.scoreText.setText(`Salas: ${this.roomsCompleted}  Monedas: ${this.coins}`);
           this.resetRoom();
         }
       } else {
@@ -580,15 +617,127 @@ class MainGameScene extends Phaser.Scene {
         }
       }
     }, null, this);
-    // Si el boss no es derrotado en 10 segundos, se elimina y se reinicia la sala
-    this.time.delayedCall(10000, () => {
+  
+    // Si el boss sobrevive 3 minutos y 14 segundos, desaparece y reinicia la sala
+    this.time.delayedCall(194000, () => {
       if (boss.active) {
         boss.destroy();
         this.resetRoom();
       }
+    });
+  }
+  
+  spawnFireball(boss) {
+    // Crear la bola de fuego
+    let fireball = this.physics.add.sprite(boss.x, boss.y, 'fireball');
+    fireball.speed = 150;  // Velocidad de la bola de fuego
+    fireball.target = this.player;  // Asignamos el objetivo
+  
+    // Guardamos el fireball en un grupo
+    if (!this.fireballs) {
+      this.fireballs = this.physics.add.group();
+    }
+    this.fireballs.add(fireball);
+  
+    // Colisión entre fireball y jugador
+    this.physics.add.overlap(this.player, fireball, (player, fb) => {
+      fb.destroy();
+      this.playerHealth = Math.max(0, this.playerHealth - 1);
+      this.healthText.setText(`Vida: ${this.playerHealth}`);
+      if (this.playerHealth <= 0) {
+        submitScore(this.playerName, this.roomsCompleted, this.coins, this.playerHealth);
+        this.scene.start('GameOverScene');
+      }
     }, null, this);
+  
+    // Colisión con plataformas y enemigos
+    this.physics.add.collider(fireball, this.platforms, (fb) => fb.destroy());
+    this.physics.add.collider(fireball, this.enemies, (fb) => fb.destroy());
+  
+    // Destruir la bola de fuego después de 7 segundos
+    this.time.delayedCall(7000, () => {
+      if (fireball.active) {
+        fireball.destroy();
+      }
+    });
   }
 
+  // Drop aleatorio de objetos al derrotar al boss
+  dropItem(x, y) {
+      let dropChance = Math.random();
+        if (dropChance <= 0.9) { // 90% de probabilidad de soltar un objeto
+      let items = ['item1', 'item2', 'item3'];
+      let randomItem = items[Math.floor(Math.random() * items.length)];
+      let droppedItem = this.physics.add.sprite(x, y, randomItem);
+
+      this.physics.add.overlap(this.player, droppedItem, (player, item) => {
+          console.log("Item recogido:", item.texture.key);
+          item.destroy();
+          // Aquí puedes agregar lógica para el inventario
+    });
+  }
+}
+  
+  update() {
+    // Movimiento del boss hacia el jugador
+    if (this.boss && this.boss.active) {
+      let dx = this.player.x - this.boss.x;
+      let dy = this.player.y - this.boss.y;
+      let magnitude = Math.sqrt(dx * dx + dy * dy);
+      if (magnitude > 0) {
+        this.boss.setVelocity((dx / magnitude) * this.boss.speed, (dy / magnitude) * this.boss.speed);
+      }
+    }
+  
+    // Movimiento de los proyectiles hacia el jugador
+    if (this.fireballs) {
+      this.fireballs.children.iterate((fireball) => {
+        if (fireball.active && fireball.target) {
+          let dx = fireball.target.x - fireball.x;
+          let dy = fireball.target.y - fireball.y;
+          let magnitude = Math.sqrt(dx * dx + dy * dy);
+          if (magnitude > 0) {
+            fireball.setVelocity((dx / magnitude) * fireball.speed, (dy / magnitude) * fireball.speed);
+          }
+        }
+      });
+    }
+  }
+  
+  inventory() {
+    if (!this.inventoryContainer) {
+        this.inventoryContainer = this.add.container(400, 300); // Centro de la pantalla
+        let bg = this.add.image(0, 0, 'inventoryBg').setScale(0.5);
+        this.inventoryContainer.add(bg);
+
+        this.inventoryItems = [];
+
+        // Mostrar hasta 3 ítems en el inventario
+        for (let i = 0; i < 3; i++) {
+            let item = this.add.image(-50 + i * 50, 0, 'item' + (i + 1)).setVisible(false);
+            this.inventoryContainer.add(item);
+            this.inventoryItems.push(item);
+        }
+
+        this.inventoryContainer.setVisible(false);
+    }
+
+    // Alternar visibilidad con la tecla "E"
+    this.input.keyboard.on('keydown-E', () => {
+        this.inventoryContainer.setVisible(!this.inventoryContainer.visible);
+    });
+}
+    // Cuando el jugador recoja un ítem:
+  addToInventory(itemKey) {
+    for (let i = 0; i < this.inventoryItems.length; i++) {
+        if (!this.inventoryItems[i].visible) {
+            this.inventoryItems[i].setTexture(itemKey).setVisible(true);
+            break;
+        }
+    }
+}
+
+  
   spawnShop() {
     console.log("¡Tienda!");
     // Pausar la física y mostrar overlay
@@ -730,32 +879,48 @@ class GameOverScene extends Phaser.Scene {
   create() {
       const { width, height } = this.cameras.main;
       
+      // Fondo de degradado
       this.cameras.main.setBackgroundColor('#000');
-      
+      let background = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.8);
+      this.add.tween({
+        targets: background,
+        alpha: 0.4,
+        duration: 2000,
+        yoyo: true,
+        repeat: -1
+      });
+
+      // Título de "Game Over"
       this.add.text(width / 2, height / 4, 'GAME OVER', {
-          fontSize: '32px',
+          fontSize: '48px',
           fontFamily: 'Press Start 2P',
-          color: '#FF0000'
+          color: '#FF0000',
+          stroke: '#FFFFFF',
+          strokeThickness: 4
       }).setOrigin(0.5);
 
+      // Botón de reinicio
       let restartButton = this.add.text(width / 2, height / 2, 'RETRY', {
-          fontSize: '20px',
+          fontSize: '24px',
           fontFamily: 'Press Start 2P',
           color: '#FFFFFF',
           backgroundColor: '#FF0000',
-          padding: { left: 10, right: 10, top: 5, bottom: 5 }
+          padding: { left: 20, right: 20, top: 10, bottom: 10 },
+          borderRadius: 15
       }).setOrigin(0.5).setInteractive();
 
       restartButton.on('pointerdown', () => {
           this.scene.start('MainGameScene');
       });
 
+      // Botón de leaderboard
       let leaderboardButton = this.add.text(width / 2, height / 2 + 50, 'LEADERBOARD', {
-          fontSize: '20px',
+          fontSize: '24px',
           fontFamily: 'Press Start 2P',
           color: '#FFFFFF',
           backgroundColor: '#0000FF',
-          padding: { left: 10, right: 10, top: 5, bottom: 5 }
+          padding: { left: 20, right: 20, top: 10, bottom: 10 },
+          borderRadius: 15
       }).setOrigin(0.5).setInteractive();
 
       leaderboardButton.on('pointerdown', () => {
@@ -763,6 +928,7 @@ class GameOverScene extends Phaser.Scene {
       });
   }
 }
+
 
 // ======================
 // LeaderboardScene Corregido
@@ -776,8 +942,9 @@ class LeaderboardScene extends Phaser.Scene {
     const { width, height } = this.cameras.main;
     this.cameras.main.setBackgroundColor('#000');
 
+    // Título de "Leaderboard"
     this.add.text(width / 2, 50, 'SCORE RANKING', {
-      fontSize: '24px',
+      fontSize: '32px',
       fontFamily: 'Press Start 2P',
       color: '#FFA500'
     }).setOrigin(0.5);
@@ -785,21 +952,29 @@ class LeaderboardScene extends Phaser.Scene {
     fetch('http://localhost:3000/api/leaderboard')
       .then(res => res.json())
       .then(data => {
+        // Mostrar las posiciones en la tabla
         data.forEach((entry, index) => {
           let score = (entry.coins * entry.rooms) + (entry.bosses || 0);
-          this.add.text(width / 4, 100 + index * 30, `${index + 1}º`, {
-            fontSize: '20px', color: '#FFFFFF', fontFamily: 'Press Start 2P'
+          
+          // Posición
+          this.add.text(width / 4, 100 + index * 40, `${index + 1}º`, {
+            fontSize: '24px', color: '#FFFFFF', fontFamily: 'Press Start 2P'
           }).setOrigin(0.5);
-          this.add.text(width / 2, 100 + index * 30, score, {
-            fontSize: '20px', color: '#FFFF00', fontFamily: 'Press Start 2P'
+
+          // Puntaje
+          this.add.text(width / 2, 100 + index * 40, score, {
+            fontSize: '24px', color: '#FFFF00', fontFamily: 'Press Start 2P'
           }).setOrigin(0.5);
-          this.add.text((width / 4) * 3, 100 + index * 30, entry.name, {
-            fontSize: '20px', color: '#00FFFF', fontFamily: 'Press Start 2P'
+
+          // Nombre del jugador
+          this.add.text((width / 4) * 3, 100 + index * 40, entry.name, {
+            fontSize: '24px', color: '#00FFFF', fontFamily: 'Press Start 2P'
           }).setOrigin(0.5);
         });
       });
   }
 }
+  
 
 // ======================
 // Configuración de Phaser
