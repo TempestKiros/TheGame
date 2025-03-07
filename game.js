@@ -208,7 +208,7 @@ class MainGameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MainGameScene' });
     this.roomsCompleted = 0;
-    this.coins = 30; // Inicializa la variable de monedas
+    this.coins = 15; // Inicializa la variable de monedas
     this.playerHealth = 5; 
     this.bossesDefeated = 0;
     this.doorCost = 5;
@@ -218,21 +218,20 @@ class MainGameScene extends Phaser.Scene {
     this.playerRace = data.race || 'human';
     this.playerName = data.playerName || "Jugador";
     // Forzamos valores de prueba
-    this.roomsCompleted = 9;
+    this.roomsCompleted = 0;
     this.totalCoins = 0;
-    this.playerHealth = 3;
+    this.playerHealth = 5;
     this.bossesDefeated = 0;
     this.itemsCollected = 0; 
   }  
   
   preload() {
-    this.physics.world.createDebugGraphic();
     // Cargar assets según la selección del jugador:
     if (this.playerRace === 'human') {
       this.load.image('roomBackground', 'assets/Human-Player/HumanBack.png');
       this.load.image('platform', 'assets/Human-Player/platform.png');
       this.load.spritesheet('coinAnim', 'assets/Human-Player/coin.png', { frameWidth: 16, frameHeight: 16 });
-      this.load.spritesheet('enemy', 'assets/Human-Player/IdleEnemy.png', { frameWidth: 416 / 13, frameHeight: 34 });
+      this.load.spritesheet('enemy', 'assets/Human-Player/Chicken/IdleEnemy.png', { frameWidth: 416 / 13, frameHeight: 34 });
       this.load.image('door', 'assets/Human-Player/Door-Human.png');
       this.load.spritesheet('boss', 'assets/Human-Player/boss.png', { frameWidth: 440 / 10, frameHeight: 30 });
       this.load.image('shop', 'assets/Human-Player/shop.png');
@@ -249,7 +248,7 @@ class MainGameScene extends Phaser.Scene {
       this.load.image('roomBackground', 'assets/Quimera-Player/Quimerasback.png');
       this.load.image('platform', 'assets/Quimera-Player/platform.png');
       this.load.spritesheet('coinAnim', 'assets/Quimera-Player/coin.png', { frameWidth: 16, frameHeight: 16 });
-      this.load.spritesheet('enemy', 'assets/Quimera-Player/IdleEnemy.png', { frameWidth: 572 / 11, frameHeight: 34 });
+      this.load.spritesheet('enemy', 'assets/Quimera-Player/Rino/IdleEnemy.png', { frameWidth: 572 / 11, frameHeight: 34 });
       this.load.image('door', 'assets/Quimera-Player/Door-Quimera.png');
       this.load.spritesheet('boss', 'assets/Quimera-Player/boss.png', { frameWidth: 440 / 10, frameHeight: 30 });
       this.load.image('shop', 'assets/Quimera-Player/shop.png');
@@ -266,7 +265,7 @@ class MainGameScene extends Phaser.Scene {
       this.load.image('roomBackground', 'assets/Robot-Player/RobotBack.png');
       this.load.image('platform', 'assets/Robot-Player/platform.png');
       this.load.spritesheet('coinAnim', 'assets/Robot-Player/coin.png', { frameWidth: 16, frameHeight: 16 });
-      this.load.spritesheet('enemy', 'assets/Robot-Player/IdleEnemy.png', { frameWidth: 440 / 10, frameHeight: 30 });
+      this.load.spritesheet('enemy', 'assets/Robot-Player/Slime/IdleEnemy.png', { frameWidth: 440 / 10, frameHeight: 30 });
       this.load.image('door', 'assets/Robot-Player/Door-Robot.png');
       this.load.spritesheet('boss', 'assets/Robot-Player/boss.png', { frameWidth: 440 / 10, frameHeight: 30 });
       this.load.image('shop', 'assets/Robot-Player/shop.png');
@@ -393,6 +392,15 @@ class MainGameScene extends Phaser.Scene {
     this.spawnCoins();
     this.physics.add.collider(this.coinsGroup, this.platforms);
     this.physics.add.overlap(this.player, this.coinsGroup, this.collectCoin, null, this);
+
+     // Agrega un listener para la tecla "P"
+     this.input.keyboard.on('keydown-P', () => {
+      // Si el menú no está activo, se pausa el juego y se lanza el menú
+      if (!this.scene.isActive('MenuScene')) {
+        this.scene.pause();
+        this.scene.launch('MenuScene');
+      }
+    });
     
     // Enemigos
     if (!this.anims.exists('enemyWalk')) {
@@ -903,7 +911,6 @@ class MainGameScene extends Phaser.Scene {
     }
   }
   
-  
   setPlayerInvulnerability(duration) {
     this.player.invulnerable = true;
     // Usa un tween para lograr el efecto de parpadeo
@@ -921,6 +928,56 @@ class MainGameScene extends Phaser.Scene {
     });
   }  
 }
+
+// ======================
+// Menu Scene Mejorado
+// ======================
+class MenuScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'MenuScene' });
+  }
+
+  create() {
+    // Fondo semitransparente para el menú
+    let graphics = this.add.graphics();
+    graphics.fillStyle(0x000000, 0.5);
+    graphics.fillRect(0, 0, this.cameras.main.width, this.cameras.main.height);
+
+    // Título del menú
+    this.add.text(200, 50, 'Menú del Juego', { font: '48px Arial', fill: '#fff' });
+
+    // Botón para reiniciar el nivel
+    let restartButton = this.add.text(200, 150, 'Reiniciar Nivel', { font: '32px Arial', fill: '#fff' })
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        // Cierra el menú y reinicia la escena del juego
+        this.scene.stop();                      // Detiene el menú
+        this.scene.stop('MainGameScene');       // Detiene la escena del juego
+        this.scene.start('MainGameScene');      // Reinicia la escena del juego
+      });
+
+    // Botón para volver a la selección de personaje
+    let selectionButton = this.add.text(200, 250, 'Selección de Personaje', { font: '32px Arial', fill: '#fff' })
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        // Cierra el menú y cambia a la escena de selección de personaje
+        this.scene.stop();                                // Detiene el menú
+        this.scene.stop('MainGameScene');                 // Detiene la escena del juego
+        this.scene.start('CharacterSelectScene');      // Inicia la escena de selección
+      });
+
+    // Botón para ir al Leaderboard
+    let leaderboardButton = this.add.text(200, 350, 'Leaderboard', { font: '32px Arial', fill: '#fff' })
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        // Cierra el menú y cambia a la escena de leaderboard
+        this.scene.stop();               // Detiene el menú
+        this.scene.stop('MainGameScene');      // Detiene la escena del juego
+        this.scene.start('LeaderboardScene');  // Inicia la escena del leaderboard
+      });
+  }
+}
+
 
 // ======================
 // Game Over Scene Mejorado
@@ -983,7 +1040,6 @@ class GameOverScene extends Phaser.Scene {
   }
 }
 
-
 // ======================
 // LeaderboardScene Corregido
 // ======================
@@ -992,43 +1048,84 @@ class LeaderboardScene extends Phaser.Scene {
     super({ key: 'LeaderboardScene' });
   }
 
+  preload() {
+    this.load.image('botonAtras', 'assets/boton_atras.png');
+  }
+
   create() {
     const { width, height } = this.cameras.main;
     this.cameras.main.setBackgroundColor('#000');
-
-    // Título de "Leaderboard"
+  
+    // Título de la clasificación
     this.add.text(width / 2, 50, 'SCORE RANKING', {
       fontSize: '32px',
       fontFamily: 'Press Start 2P',
       color: '#FFA500'
     }).setOrigin(0.5);
-
+  
+    // Obtener datos de la clasificación
     fetch('http://localhost:3000/api/leaderboard')
       .then(res => res.json())
       .then(data => {
+        if (data.length === 0) {
+          this.add.text(width / 2, height / 2, 'No hay datos disponibles', {
+            fontSize: '24px',
+            fontFamily: 'Press Start 2P',
+            color: '#FFFFFF'
+          }).setOrigin(0.5);
+          return;
+        }
+  
         // Mostrar las posiciones en la tabla
         data.forEach((entry, index) => {
           let score = (entry.coins * entry.rooms) + (entry.bosses || 0);
-          
+  
           // Posición
           this.add.text(width / 4, 100 + index * 40, `${index + 1}º`, {
-            fontSize: '24px', color: '#FFFFFF', fontFamily: 'Press Start 2P'
+            fontSize: '48px',
+            color: '#FFFFFF',
+            fontFamily: 'Press Start 2P'
           }).setOrigin(0.5);
-
+  
           // Puntaje
           this.add.text(width / 2, 100 + index * 40, score, {
-            fontSize: '24px', color: '#FFFF00', fontFamily: 'Press Start 2P'
+            fontSize: '48px',
+            color: '#FFFF00',
+            fontFamily: 'Press Start 2P'
           }).setOrigin(0.5);
-
+  
           // Nombre del jugador
           this.add.text((width / 4) * 3, 100 + index * 40, entry.name, {
-            fontSize: '24px', color: '#00FFFF', fontFamily: 'Press Start 2P'
+            fontSize: '48px',
+            color: '#00FFFF',
+            fontFamily: 'Press Start 2P'
           }).setOrigin(0.5);
         });
+      })
+      .catch(err => {
+        console.error('Error al obtener datos de la clasificación:', err);
+        this.add.text(width / 2, height / 2, 'Error al cargar clasificación', {
+          fontSize: '24px',
+          fontFamily: 'Press Start 2P',
+          color: '#FF0000'
+        }).setOrigin(0.5);
       });
-  }
-}
   
+    // Agregar botón de retroceso
+    this.addBackButton();
+  }
+  
+  // Método para agregar el botón de retroceso
+  addBackButton() {
+    const { width, height } = this.cameras.main;
+  
+    const backButton = this.add.image(width - 50, height - 50, 'botonAtras')
+      .setInteractive()
+      .on('pointerdown', () => {
+        this.scene.start('CharacterSelectScene'); // Cambia a la escena de selección de personaje
+      });
+  }    
+}
 
 // ======================
 // Configuración de Phaser
@@ -1051,10 +1148,11 @@ const config = {
     NameSelectScene,
     CharacterSelectScene,
     MainGameScene,
-    GameOverScene
+    MenuScene,
+    GameOverScene,
+    LeaderboardScene
   ]
 };
-
 const game = new Phaser.Game(config);
 console.log(`Monedas al final: ${this.coins}`);
 
