@@ -1,5 +1,5 @@
 // ======================
-// IntroScene
+// IntroScene           =
 // ======================
 class IntroScene extends Phaser.Scene {
   constructor() {
@@ -27,9 +27,9 @@ class IntroScene extends Phaser.Scene {
   }
 }
 
-// ======================
-// NameSelectScene (Selector de Nombre estilo Undertale)
-// ======================
+// =====================================
+// NameSelectScene (Selector de Nombre)=
+// =====================================
 class NameSelectScene extends Phaser.Scene {
   constructor() {
     super({ key: 'NameSelectScene' });
@@ -144,9 +144,9 @@ class NameSelectScene extends Phaser.Scene {
   }
 }
 
-// ======================
-// CharacterSelectScene
-// ======================
+// =======================
+// CharacterSelectScene  =
+// =======================
 class CharacterSelectScene extends Phaser.Scene {
   constructor() {
     super({ key: 'CharacterSelectScene' });
@@ -201,9 +201,9 @@ class CharacterSelectScene extends Phaser.Scene {
   }
 }
 
-// ======================
-// MainGameScene (con animaciones adicionales, mecánica de stomp, enemigos, boss y tienda)
-// ======================
+// =========================================================================================
+// MainGameScene (con animaciones, mecánica de stomp, enemigos, boss y tienda)             =
+// =========================================================================================
 class MainGameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MainGameScene' });
@@ -929,9 +929,9 @@ class MainGameScene extends Phaser.Scene {
   }  
 }
 
-// ======================
-// Menu Scene Mejorado
-// ======================
+// =======================
+// Menu Scene Mejorado   =
+// =======================
 class MenuScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MenuScene' });
@@ -978,10 +978,9 @@ class MenuScene extends Phaser.Scene {
   }
 }
 
-
-// ======================
-// Game Over Scene Mejorado
-// ======================
+// ==========================
+// Game Over Scene Mejorado =
+// ==========================
 class GameOverScene extends Phaser.Scene {
   constructor() {
       super({ key: 'GameOverScene' });
@@ -1040,9 +1039,9 @@ class GameOverScene extends Phaser.Scene {
   }
 }
 
-// ======================
-// LeaderboardScene Corregido
-// ======================
+// =============================
+// LeaderboardScene Corregido  =
+// =============================
 class LeaderboardScene extends Phaser.Scene {
   constructor() {
     super({ key: 'LeaderboardScene' });
@@ -1127,9 +1126,9 @@ class LeaderboardScene extends Phaser.Scene {
   }    
 }
 
-// ======================
-// Configuración de Phaser
-// ======================
+// =============================
+// Configuración de Phaser     =
+// =============================
 const config = {
   type: Phaser.AUTO,
   width: 800,
@@ -1156,9 +1155,9 @@ const config = {
 const game = new Phaser.Game(config);
 console.log(`Monedas al final: ${this.coins}`);
 
-// ======================
-// Enviar datos al servidor
-// ======================
+// =============================
+// Enviar datos al servidor    =
+// =============================
 function submitScore(playerName, rooms, coins, bosses) {
   console.log(`Enviando: Name=${playerName}, Rooms=${rooms}, Coins=${coins}, Bosses=${bosses}`);
   let score = (coins * rooms) + bosses;
